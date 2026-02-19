@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle, Package, ArrowRight } from 'lucide-react';
@@ -16,20 +16,14 @@ const OrderConfirmationPage = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchOrder();
-  }, [orderId]);
-
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const user = JSON.parse(localStorage.getItem('user'));
-      
       const response = await axios.get(
         `${API}/orders/user/${user.id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
       const foundOrder = response.data.find(o => o.id === orderId);
       setOrder(foundOrder);
     } catch (error) {
@@ -37,7 +31,11 @@ const OrderConfirmationPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId]);
+
+  useEffect(() => {
+    fetchOrder();
+  }, [fetchOrder]);
 
   if (loading) {
     return (
@@ -94,7 +92,7 @@ const OrderConfirmationPage = () => {
             className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-stone-100 mb-8"
           >
             <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-6">Order Details</h2>
-            
+
             <div className="space-y-4 mb-8">
               <div className="flex justify-between pb-3 border-b border-stone-100">
                 <span className="text-stone-600">Order ID</span>

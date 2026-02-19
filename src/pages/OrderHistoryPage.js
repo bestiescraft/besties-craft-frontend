@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Package, ShoppingBag } from 'lucide-react';
@@ -18,15 +18,7 @@ const OrderHistoryPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/checkout');
-      return;
-    }
-    fetchOrders();
-  }, [user]);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
@@ -40,7 +32,15 @@ const OrderHistoryPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/checkout');
+      return;
+    }
+    fetchOrders();
+  }, [user, navigate, fetchOrders]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -56,9 +56,7 @@ const OrderHistoryPage = () => {
     }
   };
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   if (loading) {
     return (
@@ -113,9 +111,7 @@ const OrderHistoryPage = () => {
                       </div>
                       <p className="text-sm text-stone-600" data-testid={`order-date-${index}`}>
                         {new Date(order.created_at).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
+                          year: 'numeric', month: 'long', day: 'numeric'
                         })}
                       </p>
                     </div>

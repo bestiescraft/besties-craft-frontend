@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, ChevronDown } from 'lucide-react';
@@ -38,8 +38,8 @@ const COLOR_MAP = {
 const PLACEHOLDER = 'https://placehold.co/400x400/e8e0d5/a09080?text=Craft';
 
 export default function ProductsPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate  = useNavigate();
+  const location  = useLocation();
 
   const [products, setProducts] = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -52,9 +52,7 @@ export default function ProductsPage() {
     setCategory(params.get('category') || '');
   }, [location.search]);
 
-  useEffect(() => { fetchProducts(); }, [category, sort]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({ sort });
@@ -67,7 +65,11 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [category, sort]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const filtered = products.filter(p =>
     !search.trim() ||
@@ -101,7 +103,6 @@ export default function ProductsPage() {
         .pp-title { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(1.8rem, 3vw, 2.4rem); font-weight: 700; color: var(--dark); margin: 0 0 0.3rem; }
         .pp-count { font-size: 0.85rem; color: var(--muted); font-family: 'Lato', sans-serif; }
 
-        /* Toolbar */
         .pp-toolbar { background: #fff; border-bottom: 1px solid var(--sand); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 40; box-shadow: 0 2px 10px rgba(44,24,16,0.05); }
         .pp-toolbar-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
         .pp-search-wrap { position: relative; flex: 1; min-width: 180px; }
@@ -115,7 +116,6 @@ export default function ProductsPage() {
         .pp-clear-btn { display: flex; align-items: center; gap: 0.3rem; padding: 0.58rem 1rem; border-radius: 50px; border: 1.5px solid #fecdd3; background: #fff1f2; font-size: 0.8rem; font-family: 'Lato', sans-serif; color: #be123c; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
         .pp-clear-btn:hover { background: #ffe4e6; }
 
-        /* Category pills */
         .pp-cat-bar { padding: 0.85rem 2rem; background: var(--warm); border-bottom: 1px solid var(--sand); overflow-x: auto; scrollbar-width: none; }
         .pp-cat-bar::-webkit-scrollbar { display: none; }
         .pp-cat-inner { max-width: 1180px; margin: 0 auto; display: flex; gap: 0.5rem; align-items: center; }
@@ -123,11 +123,9 @@ export default function ProductsPage() {
         .pp-cat-pill:hover { border-color: var(--terracotta); color: var(--terracotta); }
         .pp-cat-pill.active { background: var(--dark); border-color: var(--dark); color: #fff; }
 
-        /* Grid */
         .pp-body { max-width: 1180px; margin: 0 auto; padding: 2.5rem 2rem 5rem; }
         .pp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
 
-        /* Card */
         .pp-card { background: #fff; border-radius: 18px; overflow: hidden; border: 1px solid var(--sand); cursor: pointer; transition: transform 0.22s, box-shadow 0.22s; font-family: 'Lato', sans-serif; }
         .pp-card:hover { transform: translateY(-6px); box-shadow: 0 18px 44px rgba(44,24,16,0.13); }
         .pp-card-img { height: 220px; overflow: hidden; background: var(--warm); position: relative; }
@@ -145,7 +143,6 @@ export default function ProductsPage() {
         .pp-badge-in  { background: #d1fae5; color: #065f46; }
         .pp-badge-out { background: #fee2e2; color: #991b1b; }
 
-        /* Empty / skeleton */
         .pp-empty { grid-column: 1 / -1; text-align: center; padding: 5rem 2rem; }
         .pp-empty-icon { font-size: 3.5rem; margin-bottom: 1rem; display: block; }
         .pp-empty-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--dark); margin-bottom: 0.5rem; }
