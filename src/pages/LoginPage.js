@@ -1,86 +1,151 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, KeyRound } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApp } from '@/App';
+import { auth } from '@/firebase';
+import {
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+} from 'firebase/auth';
 import { toast } from 'sonner';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'https://besties-craft-backend-1.onrender.com';
+const ACTION_CODE_SETTINGS = {
+  url:             window.location.origin + '/login', // redirects back to same site
+  handleCodeInApp: true,                              // opens in same tab, NOT a popup
+};
 
 const LoginPage = () => {
-  const navigate       = useNavigate();
+  const navigate          = useNavigate();
   const { user, setUser } = useApp();
 
-  const [email,   setEmail]   = useState('');
-  const [otp,     setOtp]     = useState('');
-  const [step,    setStep]    = useState('email');   // 'email' | 'otp'
-  const [loading, setLoading] = useState(false);
+  const [email,     setEmail]     = useState('');
+  const [linkSent,  setLinkSent]  = useState(false);
+  const [loading,   setLoading]   = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
+  // If already logged in, go home
   useEffect(() => {
     if (user) navigate('/');
   }, [user, navigate]);
 
-  // ── Step 1: Send OTP ──
-  const sendOtp = async () => {
-    if (!email.trim()) { toast.error('Please enter your email address'); return; }
-    if (!/^\S+@\S+\.\S+$/.test(email)) { toast.error('Please enter a valid email address'); return; }
+  // ── Runs when user clicks the magic link in their email and lands back on /login ──
+  useEffect(() => {
+    if (!isSignInWithEmailLink(auth, window.location.href)) return;
+
+    setVerifying(true);
+
+    // Email was saved to localStorage when user clicked "Send Login Link"
+    // This means NO prompt asking for email again — it's handled automatically
+    const savedEmail = localStorage.getItem('emailForSignIn');
+
+    if (!savedEmail) {
+      // Edge case: user opened link on a different device (no localStorage)
+      // Show the form again with a helpful message
+      setVerifying(false);
+      toast.info('Please enter your email to complete sign-in.');
+      return;
+    }
+
+    signInWithEmailLink(auth, savedEmail, window.location.href)
+      .then(async (result) => {
+        // Cleanup
+        localStorage.removeItem('emailForSignIn');
+        window.history.replaceState({}, document.title, '/login'); // clean URL
+
+        const firebaseUser = result.user;
+        const token = await firebaseUser.getIdToken();
+
+        const userData = {
+          id:    firebaseUser.uid,
+          email: firebaseUser.email,
+          name:  firebaseUser.displayName
+                   || firebaseUser.email?.split('@')[0]
+                   || 'Customer',
+        };
+
+        // Save to localStorage so app context persists on refresh
+        localStorage.setItem('token', token);
+        localStorage.setItem('user',  JSON.stringify(userData));
+        setUser(userData);
+
+        toast.success('Welcome to Besties Craft! ✦');
+        navigate('/'); // ← redirect to homepage automatically
+      })
+      .catch((err) => {
+        console.error('Sign-in error:', err);
+        localStorage.removeItem('emailForSignIn');
+        window.history.replaceState({}, document.title, '/login');
+
+        switch (err.code) {
+          case 'auth/invalid-action-code':
+            toast.error('This login link has expired or already been used. Please request a new one.');
+            break;
+          case 'auth/invalid-email':
+            toast.error('Email mismatch. Please request a new login link.');
+            break;
+          default:
+            toast.error('Sign-in failed. Please request a new login link.');
+        }
+        setVerifying(false);
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Send the magic link email ──
+  const sendLoginLink = async () => {
+    if (!email.trim())                         { toast.error('Please enter your email address'); return; }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim()))  { toast.error('Please enter a valid email address'); return; }
 
     setLoading(true);
     try {
-      const res  = await fetch(`${API_BASE}/api/auth/send-otp`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email: email.trim().toLowerCase() }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.detail || 'Failed to send OTP');
-
-      setStep('otp');
-      toast.success('OTP sent! Check your inbox.');
+      await sendSignInLinkToEmail(auth, email.trim(), ACTION_CODE_SETTINGS);
+      localStorage.setItem('emailForSignIn', email.trim()); // save for auto-fill on return
+      setLinkSent(true);
+      toast.success('Login link sent! Check your inbox.');
     } catch (err) {
       console.error(err);
-      toast.error(err.message || 'Failed to send OTP. Please try again.');
+      switch (err.code) {
+        case 'auth/operation-not-allowed':
+          toast.error('Email link sign-in is not enabled. Please contact support.');
+          break;
+        case 'auth/too-many-requests':
+          toast.error('Too many attempts. Please wait a few minutes and try again.');
+          break;
+        case 'auth/network-request-failed':
+          toast.error('Network error. Please check your connection and try again.');
+          break;
+        default:
+          toast.error('Failed to send login link. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Step 2: Verify OTP ──
-  const verifyOtp = async () => {
-    if (!otp.trim() || otp.length !== 6) { toast.error('Please enter the 6-digit OTP'); return; }
-
-    setLoading(true);
-    try {
-      const res  = await fetch(`${API_BASE}/api/auth/verify-otp`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email: email.trim().toLowerCase(), otp: otp.trim() }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.detail || 'Invalid OTP');
-
-      // Save user to app context + localStorage
-      const userData = data.user;
-      localStorage.setItem('user',  JSON.stringify(userData));
-      localStorage.setItem('token', `otp_${userData.id}`);
-      setUser(userData);
-
-      toast.success('Welcome to Besties Craft! ✦');
-      navigate('/');
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || 'Invalid OTP. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ── Verifying screen shown while processing the magic link ──
+  if (verifying) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center">
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✉️</div>
+            <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-3">
+              Verifying your login…
+            </h2>
+            <p className="text-stone-500 text-sm">Please wait a moment.</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#faf7f2' }}>
@@ -96,19 +161,21 @@ const LoginPage = () => {
             Access your profile, view orders, and manage your account
           </p>
 
-          {/* ── Main card ── */}
+          {/* ── Main login card ── */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
             className="bg-white rounded-2xl p-8 md:p-10 shadow-md border border-stone-100 mb-6"
           >
-            {step === 'email' ? (
+            {!linkSent ? (
               <>
                 <div className="flex items-center gap-3 mb-2">
                   <span style={{ fontSize: '1.4rem' }}>✉️</span>
-                  <h2 className="text-lg font-serif font-semibold text-stone-900">Login with Email OTP</h2>
+                  <h2 className="text-lg font-serif font-semibold text-stone-900">Login with Email</h2>
                 </div>
                 <p className="text-stone-400 text-sm mb-7">
-                  We'll send a 6-digit code to your inbox — no password needed.
+                  We'll send a secure one-click login link to your inbox — no password needed.
                 </p>
 
                 <div className="space-y-4">
@@ -124,76 +191,52 @@ const LoginPage = () => {
                         placeholder="your@email.com"
                         value={email}
                         onChange={e => setEmail(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && sendOtp()}
+                        onKeyDown={e => e.key === 'Enter' && sendLoginLink()}
                         className="pl-12 py-6 text-base"
                       />
                     </div>
                   </div>
 
-                  <Button onClick={sendOtp} disabled={loading} className="btn-primary w-full py-6 text-base">
-                    {loading ? 'Sending OTP…' : 'Send OTP'}
+                  <Button
+                    onClick={sendLoginLink}
+                    disabled={loading}
+                    className="btn-primary w-full py-6 text-base"
+                  >
+                    {loading ? 'Sending…' : 'Send Login Link'}
                   </Button>
                 </div>
               </>
             ) : (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                <div className="flex items-center gap-3 mb-2">
-                  <span style={{ fontSize: '1.4rem' }}>🔐</span>
-                  <h2 className="text-lg font-serif font-semibold text-stone-900">Enter Your OTP</h2>
-                </div>
-                <p className="text-stone-400 text-sm mb-1">
-                  We sent a 6-digit code to:
+              <motion.div
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-4"
+              >
+                <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>📬</div>
+                <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-3">
+                  Check your inbox!
+                </h2>
+                <p className="text-stone-500 mb-2">We sent a login link to:</p>
+                <p className="text-amber-700 font-semibold text-lg mb-5">{email}</p>
+                <p className="text-stone-400 text-sm mb-7 leading-relaxed">
+                  Click the link in the email to log in instantly.<br />
+                  It expires in 10 minutes. Check your spam folder too.
                 </p>
-                <p className="text-amber-700 font-semibold mb-7">{email}</p>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="otp" className="text-stone-700 font-medium mb-1.5 block">
-                      6-Digit Code
-                    </Label>
-                    <div className="relative mt-1">
-                      <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5" />
-                      <Input
-                        id="otp"
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={6}
-                        placeholder="123456"
-                        value={otp}
-                        onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
-                        onKeyDown={e => e.key === 'Enter' && verifyOtp()}
-                        className="pl-12 py-6 text-base tracking-widest"
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-
-                  <Button onClick={verifyOtp} disabled={loading} className="btn-primary w-full py-6 text-base">
-                    {loading ? 'Verifying…' : 'Verify & Login'}
-                  </Button>
-
-                  <button
-                    onClick={() => { setStep('email'); setOtp(''); }}
-                    className="w-full text-stone-400 hover:text-stone-700 text-sm underline transition-colors"
-                  >
-                    Use a different email
-                  </button>
-
-                  <button
-                    onClick={sendOtp}
-                    disabled={loading}
-                    className="w-full text-amber-600 hover:text-amber-800 text-sm underline transition-colors"
-                  >
-                    Resend OTP
-                  </button>
-                </div>
+                <button
+                  onClick={() => { setLinkSent(false); setEmail(''); }}
+                  className="text-stone-400 hover:text-stone-700 text-sm underline transition-colors"
+                >
+                  Use a different email
+                </button>
               </motion.div>
             )}
           </motion.div>
 
           {/* ── Info cards ── */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"
           >
             <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100">
@@ -207,15 +250,17 @@ const LoginPage = () => {
             <div className="bg-stone-50 rounded-2xl p-5 border border-stone-100">
               <h3 className="text-base font-semibold text-stone-900 mb-3">Security</h3>
               <ul className="space-y-2 text-stone-600 text-sm">
-                <li className="flex items-start gap-2"><span>🔒</span> 6-digit OTP expires in 10 minutes</li>
-                <li className="flex items-start gap-2"><span>🔒</span> No password needed</li>
+                <li className="flex items-start gap-2"><Lock className="w-4 h-4 text-stone-500 flex-shrink-0 mt-0.5" /> Secure one-click link — no password needed</li>
+                <li className="flex items-start gap-2"><Lock className="w-4 h-4 text-stone-500 flex-shrink-0 mt-0.5" /> Powered by Google Firebase</li>
               </ul>
             </div>
           </motion.div>
 
           {/* ── CTA ── */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
             className="bg-gradient-to-r from-amber-50 to-stone-50 rounded-2xl p-7 border border-amber-100"
           >
             <h3 className="text-xl font-serif font-semibold text-stone-900 mb-3">Ready to Shop?</h3>
