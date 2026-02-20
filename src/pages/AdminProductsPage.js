@@ -5,16 +5,38 @@ import { AdminLayout } from '@/components/AdminLayout';
 
 const API = process.env.REACT_APP_API_URL || 'https://besties-craft-backend-1.onrender.com';
 
+// ✅ 6 categories only — values now match their real names
 const CATEGORIES = [
-  { label: 'Bracelets',        value: 'bracelets', emoji: '📿' },
-  { label: 'Handmade Flowers', value: 'scarves',   emoji: '🌸' },
-  { label: 'Keychains',        value: 'blankets',  emoji: '🔑' },
-  { label: 'Hair Accessories', value: 'bags',      emoji: '🎀' },
-  { label: 'Gifting Items',    value: 'wool',      emoji: '🎁' },
-  { label: 'Crafts',           value: 'crafts',    emoji: '🎨' },
-  { label: 'Handmade',         value: 'handmade',  emoji: '🤲' },
-  { label: 'General',          value: 'general',   emoji: '📦' },
+  { label: 'Bracelets',        value: 'bracelets',        emoji: '📿' },
+  { label: 'Handmade Flowers', value: 'handmade-flowers',  emoji: '🌸' },
+  { label: 'Keychains',        value: 'keychains',         emoji: '🔑' },
+  { label: 'Hair Accessories', value: 'hair-accessories',  emoji: '🎀' },
+  { label: 'Gifting Items',    value: 'gifting-items',     emoji: '🎁' },
+  { label: 'Crafts',           value: 'crafts',            emoji: '🎨' },
 ];
+
+// Map old bad values → new clean values (for display of existing products)
+const LEGACY_MAP = {
+  scarves:  'handmade-flowers',
+  blankets: 'keychains',
+  bags:     'hair-accessories',
+  wool:     'gifting-items',
+  handmade: 'crafts',
+  general:  'crafts',
+};
+
+const normalizeCategory = (val) => {
+  if (!val) return '';
+  if (LEGACY_MAP[val]) return LEGACY_MAP[val];
+  return val;
+};
+
+const normalizeCategoriesArray = (cats) => {
+  if (!cats) return [];
+  if (Array.isArray(cats)) return cats.map(normalizeCategory).filter(Boolean);
+  // single string — wrap in array
+  return [normalizeCategory(cats)].filter(Boolean);
+};
 
 const PRESET_COLORS = [
   { name: 'Red',      hex: '#EF4444' }, { name: 'Pink',     hex: '#EC4899' },
@@ -27,18 +49,24 @@ const PRESET_COLORS = [
   { name: 'Maroon',   hex: '#7F1D1D' }, { name: 'Navy',     hex: '#1E3A5F' },
 ];
 
-// Fix relative image URLs from old uploads
 const fixImageUrl = (url) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   return `${API}${url}`;
 };
 
+const getCatInfo = (val) => {
+  const normalized = normalizeCategory(val);
+  return CATEGORIES.find(c => c.value === normalized) || { label: val || 'Unknown', emoji: '📦' };
+};
+
 function AdminProductsPage() {
   const [products,        setProducts]        = useState([]);
   const [isModalOpen,     setIsModalOpen]     = useState(false);
   const [editingProduct,  setEditingProduct]  = useState(null);
-  const [formData,        setFormData]        = useState({ name: '', description: '', base_price: '', category: '', stock: '', colors: [] });
+  const [formData,        setFormData]        = useState({
+    name: '', description: '', base_price: '', categories: [], stock: '', colors: []
+  });
   const [imagePreviews,   setImagePreviews]   = useState([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [loading,         setLoading]         = useState(false);
@@ -67,12 +95,12 @@ function AdminProductsPage() {
     if (!product?._id) { toast.error('Invalid product data'); return; }
     setEditingProduct(product);
     setFormData({
-      name: product.name || '',
+      name:        product.name || '',
       description: product.description || '',
-      base_price: product.base_price ? parseFloat(product.base_price).toString() : '0',
-      category: product.category || '',
-      stock: product.stock !== undefined ? String(product.stock) : '0',
-      colors: product.colors || [],
+      base_price:  product.base_price ? parseFloat(product.base_price).toString() : '0',
+      categories:  normalizeCategoriesArray(product.categories || product.category),
+      stock:       product.stock !== undefined ? String(product.stock) : '0',
+      colors:      product.colors || [],
     });
     setImagePreviews(
       product.images?.length > 0
@@ -84,7 +112,7 @@ function AdminProductsPage() {
 
   const openAddModal = () => {
     setEditingProduct(null);
-    setFormData({ name: '', description: '', base_price: '', category: '', stock: '', colors: [] });
+    setFormData({ name: '', description: '', base_price: '', categories: [], stock: '', colors: [] });
     setImagePreviews([]);
     setIsModalOpen(true);
   };
@@ -92,13 +120,23 @@ function AdminProductsPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingProduct(null);
-    setFormData({ name: '', description: '', base_price: '', category: '', stock: '', colors: [] });
+    setFormData({ name: '', description: '', base_price: '', categories: [], stock: '', colors: [] });
     setImagePreviews([]);
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Toggle a category in/out of the selected array
+  const toggleCategory = (catValue) => {
+    setFormData(prev => ({
+      ...prev,
+      categories: prev.categories.includes(catValue)
+        ? prev.categories.filter(c => c !== catValue)
+        : [...prev.categories, catValue]
+    }));
   };
 
   const handleFilesChange = (e) => {
@@ -135,7 +173,12 @@ function AdminProductsPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.base_price || formData.stock === '') { toast.error('Please fill in all required fields'); return; }
+    if (!formData.name || !formData.base_price || formData.stock === '') {
+      toast.error('Please fill in all required fields'); return;
+    }
+    if (formData.categories.length === 0) {
+      toast.error('Please select at least one category'); return;
+    }
     const stockValue = parseInt(formData.stock, 10);
     if (isNaN(stockValue)) { toast.error('Stock must be a valid number'); return; }
     const adminToken = localStorage.getItem('admin_token');
@@ -161,13 +204,15 @@ function AdminProductsPage() {
     }
 
     const productData = {
-      name: formData.name.trim(),
+      name:        formData.name.trim(),
       description: formData.description.trim() || '',
-      base_price: parseFloat(formData.base_price),
-      images: finalImages,
-      category: formData.category || 'general',
-      stock: stockValue,
-      colors: formData.colors,
+      base_price:  parseFloat(formData.base_price),
+      images:      finalImages,
+      // Send both: categories array (new) + category string (backwards compat)
+      categories:  formData.categories,
+      category:    formData.categories[0] || 'crafts',
+      stock:       stockValue,
+      colors:      formData.colors,
       variants: [], skus: []
     };
 
@@ -199,14 +244,11 @@ function AdminProductsPage() {
 
   const displayed = products.filter(p => {
     const matchSearch = !searchTerm || p.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCat = !filterCat || p.category === filterCat;
+    const productCats = normalizeCategoriesArray(p.categories || p.category);
+    const matchCat = !filterCat || productCats.includes(filterCat) || normalizeCategory(p.category) === filterCat;
     return matchSearch && matchCat;
   });
 
-  const getCatLabel = (v) => CATEGORIES.find(c => c.value === v)?.label || v;
-  const getCatEmoji = (v) => CATEGORIES.find(c => c.value === v)?.emoji || '📦';
-
-  // Stock badge colours
   const stockClass = (stock) =>
     stock === 0 ? 'bg-red-100 text-red-700' :
     stock < 5   ? 'bg-yellow-100 text-yellow-700' :
@@ -231,10 +273,10 @@ function AdminProductsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'Total Products', value: products.length,                                                       sub: 'in catalogue' },
-          { label: 'In Stock',       value: products.filter(p => (p.stock||0) > 0).length,                        sub: 'available now' },
-          { label: 'Out of Stock',   value: products.filter(p => (p.stock||0) === 0).length,                      sub: 'need restocking' },
-          { label: 'Low Stock',      value: products.filter(p => (p.stock||0) > 0 && (p.stock||0) < 5).length,   sub: 'less than 5 units' },
+          { label: 'Total Products', value: products.length,                                                     sub: 'in catalogue' },
+          { label: 'In Stock',       value: products.filter(p => (p.stock||0) > 0).length,                      sub: 'available now' },
+          { label: 'Out of Stock',   value: products.filter(p => (p.stock||0) === 0).length,                    sub: 'need restocking' },
+          { label: 'Low Stock',      value: products.filter(p => (p.stock||0) > 0 && (p.stock||0) < 5).length, sub: 'less than 5 units' },
         ].map((s, i) => (
           <div key={i} className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-1">{s.label}</p>
@@ -249,18 +291,13 @@ function AdminProductsPage() {
         <div className="relative flex-1 min-w-[180px]">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none">🔍</span>
           <input
-            type="text"
-            placeholder="Search products…"
-            value={searchTerm}
+            type="text" placeholder="Search products…" value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full pl-8 pr-4 py-2.5 border border-stone-200 rounded-xl text-sm bg-white text-stone-800 outline-none focus:border-stone-400 transition-colors"
           />
         </div>
-        <select
-          value={filterCat}
-          onChange={e => setFilterCat(e.target.value)}
-          className="px-4 py-2.5 border border-stone-200 rounded-xl text-sm bg-white text-stone-800 outline-none focus:border-stone-400 cursor-pointer"
-        >
+        <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
+          className="px-4 py-2.5 border border-stone-200 rounded-xl text-sm bg-white text-stone-800 outline-none focus:border-stone-400 cursor-pointer">
           <option value="">All Categories</option>
           {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
         </select>
@@ -281,7 +318,7 @@ function AdminProductsPage() {
             <table className="w-full">
               <thead className="bg-stone-50 border-b border-stone-100">
                 <tr>
-                  {['Product', 'Category', 'Price', 'Stock', 'Colours', 'Actions'].map(h => (
+                  {['Product', 'Categories', 'Price', 'Stock', 'Colours', 'Actions'].map(h => (
                     <th key={h} className="text-left px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-stone-400">{h}</th>
                   ))}
                 </tr>
@@ -290,6 +327,7 @@ function AdminProductsPage() {
                 {displayed.map(product => {
                   const stock = product.stock || 0;
                   const primaryImg = product.images?.[0]?.url ? fixImageUrl(product.images[0].url) : null;
+                  const productCats = normalizeCategoriesArray(product.categories || product.category);
                   return (
                     <tr key={product._id} className="hover:bg-stone-50 transition-colors">
                       {/* Product */}
@@ -301,7 +339,7 @@ function AdminProductsPage() {
                               onError={e => { e.target.style.display='none'; }} />
                           ) : (
                             <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center text-xl flex-shrink-0">
-                              {getCatEmoji(product.category)}
+                              {getCatInfo(productCats[0] || '').emoji}
                             </div>
                           )}
                           <div>
@@ -311,11 +349,20 @@ function AdminProductsPage() {
                         </div>
                       </td>
 
-                      {/* Category */}
+                      {/* Categories */}
                       <td className="px-5 py-4">
-                        <span className="inline-flex items-center gap-1.5 bg-stone-100 text-stone-700 text-xs font-semibold px-2.5 py-1 rounded-full">
-                          {getCatEmoji(product.category)} {getCatLabel(product.category)}
-                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {productCats.length > 0 ? productCats.map(cat => {
+                            const info = getCatInfo(cat);
+                            return (
+                              <span key={cat} className="inline-flex items-center gap-1 bg-stone-100 text-stone-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                {info.emoji} {info.label}
+                              </span>
+                            );
+                          }) : (
+                            <span className="text-stone-300 text-sm">—</span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Price */}
@@ -413,23 +460,38 @@ function AdminProductsPage() {
                 </div>
               </section>
 
-              {/* Category */}
+              {/* Categories — multi-select checkboxes */}
               <section>
-                <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4 pb-2 border-b border-stone-100">Category</p>
-                <div className="grid grid-cols-4 gap-2">
-                  {CATEGORIES.map(cat => (
-                    <button key={cat.value} type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, category: cat.value }))}
-                      className={`flex flex-col items-center gap-1 p-3 rounded-xl border text-center transition-all text-xs font-semibold ${
-                        formData.category === cat.value
-                          ? 'border-stone-900 bg-stone-900 text-white'
-                          : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-400'
-                      }`}>
-                      <span className="text-xl">{cat.emoji}</span>
-                      <span className="leading-tight">{cat.label}</span>
-                    </button>
-                  ))}
+                <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-1 pb-2 border-b border-stone-100">
+                  Categories <span className="normal-case font-normal text-stone-400">(select up to 3)</span>
+                </p>
+                <p className="text-xs text-stone-400 mb-3">A product can appear in multiple categories</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {CATEGORIES.map(cat => {
+                    const selected = formData.categories.includes(cat.value);
+                    const maxReached = formData.categories.length >= 3 && !selected;
+                    return (
+                      <button key={cat.value} type="button"
+                        onClick={() => !maxReached && toggleCategory(cat.value)}
+                        className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-all text-sm font-semibold ${
+                          selected
+                            ? 'border-stone-900 bg-stone-900 text-white'
+                            : maxReached
+                            ? 'border-stone-100 bg-stone-50 text-stone-300 cursor-not-allowed'
+                            : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-400 cursor-pointer'
+                        }`}>
+                        <span className="text-lg">{cat.emoji}</span>
+                        <span className="leading-tight text-xs">{cat.label}</span>
+                        {selected && <span className="ml-auto text-white text-xs">✓</span>}
+                      </button>
+                    );
+                  })}
                 </div>
+                {formData.categories.length > 0 && (
+                  <p className="mt-2 text-xs text-stone-500 bg-stone-50 border border-stone-200 px-3 py-2 rounded-lg">
+                    Selected: {formData.categories.map(v => getCatInfo(v).label).join(' · ')}
+                  </p>
+                )}
               </section>
 
               {/* Photos */}
@@ -448,7 +510,7 @@ function AdminProductsPage() {
                     </div>
                   ))}
                   {imagePreviews.length < 5 && (
-                    <label className="aspect-square rounded-xl border-2 border-dashed border-stone-200 flex flex-col items-center justify-content-center cursor-pointer hover:border-stone-400 hover:bg-stone-50 transition-all flex items-center justify-center gap-1">
+                    <label className="aspect-square rounded-xl border-2 border-dashed border-stone-200 flex flex-col items-center justify-center cursor-pointer hover:border-stone-400 hover:bg-stone-50 transition-all gap-1">
                       <span className="text-xl text-stone-300">+</span>
                       <span className="text-[10px] text-stone-400 font-medium">Add</span>
                       <input type="file" accept="image/*" multiple className="hidden" onChange={handleFilesChange} />
@@ -465,8 +527,7 @@ function AdminProductsPage() {
                   {PRESET_COLORS.map(color => {
                     const selected = formData.colors.includes(color.name);
                     return (
-                      <button key={color.name} type="button" title={color.name}
-                        onClick={() => toggleColor(color.name)}
+                      <button key={color.name} type="button" title={color.name} onClick={() => toggleColor(color.name)}
                         className="flex flex-col items-center gap-1">
                         <div className={`w-7 h-7 rounded-full transition-all ${selected ? 'ring-2 ring-offset-2 ring-stone-900 scale-110' : 'hover:scale-105'}`}
                           style={{ background: color.hex, boxShadow: '0 0 0 1.5px rgba(0,0,0,0.08)' }}>

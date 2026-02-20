@@ -11,15 +11,42 @@ const BACKEND_URL =
   process.env.REACT_APP_BACKEND_URL?.replace(/\/$/, '') ||
   'https://besties-craft-backend-1.onrender.com';
 
+// ✅ 6 categories only — clean values
 const CATEGORIES = [
-  { label: 'All Products',      value: '',           emoji: '✨' },
-  { label: 'Bracelets',         value: 'bracelets',  emoji: '📿' },
-  { label: 'Handmade Flowers',  value: 'scarves',    emoji: '🌸' },
-  { label: 'Keychains',         value: 'blankets',   emoji: '🔑' },
-  { label: 'Hair Accessories',  value: 'bags',       emoji: '🎀' },
-  { label: 'Gifting Items',     value: 'wool',       emoji: '🎁' },
-  { label: 'Crafts',            value: 'crafts',     emoji: '🎨' },
+  { label: 'All Products',     value: '',                  emoji: '✨' },
+  { label: 'Bracelets',        value: 'bracelets',         emoji: '📿' },
+  { label: 'Handmade Flowers', value: 'handmade-flowers',  emoji: '🌸' },
+  { label: 'Keychains',        value: 'keychains',         emoji: '🔑' },
+  { label: 'Hair Accessories', value: 'hair-accessories',  emoji: '🎀' },
+  { label: 'Gifting Items',    value: 'gifting-items',     emoji: '🎁' },
+  { label: 'Crafts',           value: 'crafts',            emoji: '🎨' },
 ];
+
+// Map old backend values → new display values
+const LEGACY_MAP = {
+  scarves:  'handmade-flowers',
+  blankets: 'keychains',
+  bags:     'hair-accessories',
+  wool:     'gifting-items',
+  handmade: 'crafts',
+  general:  'crafts',
+};
+
+const normalizeCategory = (val) => {
+  if (!val) return '';
+  return LEGACY_MAP[val] || val;
+};
+
+const normalizeCategoriesArray = (cats) => {
+  if (!cats) return [];
+  if (Array.isArray(cats)) return cats.map(normalizeCategory).filter(Boolean);
+  return [normalizeCategory(cats)].filter(Boolean);
+};
+
+const getCatLabel = (val) => {
+  const normalized = normalizeCategory(val);
+  return CATEGORIES.find(c => c.value === normalized)?.label || val;
+};
 
 const SORT_OPTIONS = [
   { label: 'Newest First',       value: 'newest'     },
@@ -49,13 +76,16 @@ export default function ProductsPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    setCategory(params.get('category') || '');
+    // normalize incoming category param too
+    const rawCat = params.get('category') || '';
+    setCategory(normalizeCategory(rawCat));
   }, [location.search]);
 
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({ sort });
+      // Send the raw/legacy value to backend if needed, backend handles it
       if (category) params.append('category', category);
       const res = await axios.get(`${BACKEND_URL}/api/products?${params}`);
       setProducts(res.data.products || []);
@@ -67,16 +97,20 @@ export default function ProductsPage() {
     }
   }, [category, sort]);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  const filtered = products.filter(p =>
-    !search.trim() ||
-    p.name?.toLowerCase().includes(search.toLowerCase()) ||
-    p.description?.toLowerCase().includes(search.toLowerCase()) ||
-    p.category?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = products.filter(p => {
+    // Search filter
+    const matchSearch = !search.trim() ||
+      p.name?.toLowerCase().includes(search.toLowerCase()) ||
+      p.description?.toLowerCase().includes(search.toLowerCase());
+
+    // Category filter — check both new categories array and legacy category string
+    const productCats = normalizeCategoriesArray(p.categories || p.category);
+    const matchCat = !category || productCats.includes(category);
+
+    return matchSearch && matchCat;
+  });
 
   const hasFilters = search || category || sort !== 'newest';
   const clearFilters = () => { setSearch(''); setCategory(''); setSort('newest'); navigate('/products'); };
@@ -103,7 +137,7 @@ export default function ProductsPage() {
         .pp-title { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(1.8rem, 3vw, 2.4rem); font-weight: 700; color: var(--dark); margin: 0 0 0.3rem; }
         .pp-count { font-size: 0.85rem; color: var(--muted); font-family: 'Lato', sans-serif; }
 
-        .pp-toolbar { background: #fff; border-bottom: 1px solid var(--sand); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 40; box-shadow: 0 2px 10px rgba(44,24,16,0.05); }
+        .pp-toolbar { background: #fff; border-bottom: 1px solid var(--sand); padding: 0.9rem 2rem; position: sticky; top: 68px; z-index: 40; box-shadow: 0 2px 10px rgba(44,24,16,0.05); }
         .pp-toolbar-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
         .pp-search-wrap { position: relative; flex: 1; min-width: 180px; }
         .pp-search-icon { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
@@ -133,7 +167,8 @@ export default function ProductsPage() {
         .pp-card:hover .pp-card-img img { transform: scale(1.07); }
         .pp-card-img-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 3rem; background: var(--warm); }
         .pp-card-body { padding: 1.1rem 1.2rem 1.3rem; }
-        .pp-card-cat { font-size: 0.63rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--terracotta); margin-bottom: 0.3rem; }
+        .pp-card-cats { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+        .pp-card-cat { font-size: 0.63rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--terracotta); background: rgba(194,96,42,0.08); padding: 0.15rem 0.5rem; border-radius: 20px; }
         .pp-card-name { font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 600; color: var(--dark); margin: 0 0 0.55rem; line-height: 1.3; }
         .pp-card-colors { display: flex; gap: 4px; margin-bottom: 0.6rem; flex-wrap: wrap; }
         .pp-color-dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.12); }
@@ -151,7 +186,7 @@ export default function ProductsPage() {
         @keyframes pp-shimmer { to { background-position: -200% 0; } }
 
         @media (max-width: 1024px) { .pp-grid { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 768px)  { .pp-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px)  { .pp-grid { grid-template-columns: repeat(2, 1fr); } .pp-toolbar { top: 60px; } }
         @media (max-width: 420px)  { .pp-grid { grid-template-columns: 1fr; } }
       `}</style>
 
@@ -195,7 +230,10 @@ export default function ProductsPage() {
           <div className="pp-cat-inner">
             {CATEGORIES.map(cat => (
               <button key={cat.value} className={`pp-cat-pill${category === cat.value ? ' active' : ''}`}
-                onClick={() => { setCategory(cat.value); navigate(cat.value ? `/products?category=${cat.value}` : '/products'); }}>
+                onClick={() => {
+                  setCategory(cat.value);
+                  navigate(cat.value ? `/products?category=${cat.value}` : '/products');
+                }}>
                 {cat.emoji} {cat.label}
               </button>
             ))}
@@ -215,36 +253,46 @@ export default function ProductsPage() {
               </div>
             ) : (
               <AnimatePresence>
-                {filtered.map((product, i) => (
-                  <motion.div key={product._id} className="pp-card"
-                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                    transition={{ delay: Math.min(i * 0.05, 0.3) }}
-                    onClick={() => navigate(`/products/${product._id}`)}>
-                    <div className="pp-card-img">
-                      {product.images?.[0]?.url
-                        ? <img src={product.images[0].url} alt={product.name} onError={e => { e.target.src = PLACEHOLDER; }} />
-                        : <div className="pp-card-img-ph">🌸</div>}
-                    </div>
-                    <div className="pp-card-body">
-                      {product.category && <div className="pp-card-cat">{product.category}</div>}
-                      <h3 className="pp-card-name">{product.name}</h3>
-                      {product.colors?.length > 0 && (
-                        <div className="pp-card-colors">
-                          {product.colors.slice(0, 6).map(c => (
-                            <div key={c} className="pp-color-dot" style={{ background: COLOR_MAP[c] || '#ccc' }} title={c} />
-                          ))}
-                          {product.colors.length > 6 && <span style={{ fontSize: '0.62rem', color: 'var(--muted)' }}>+{product.colors.length - 6}</span>}
-                        </div>
-                      )}
-                      <div className="pp-card-footer">
-                        <span className="pp-card-price">₹{parseFloat(product.base_price).toLocaleString('en-IN')}</span>
-                        <span className={`pp-badge ${product.in_stock ? 'pp-badge-in' : 'pp-badge-out'}`}>
-                          {product.in_stock ? 'In Stock' : 'Sold Out'}
-                        </span>
+                {filtered.map((product, i) => {
+                  const productCats = normalizeCategoriesArray(product.categories || product.category);
+                  return (
+                    <motion.div key={product._id} className="pp-card"
+                      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      transition={{ delay: Math.min(i * 0.05, 0.3) }}
+                      onClick={() => navigate(`/products/${product._id}`)}>
+                      <div className="pp-card-img">
+                        {product.images?.[0]?.url
+                          ? <img src={product.images[0].url} alt={product.name} onError={e => { e.target.src = PLACEHOLDER; }} />
+                          : <div className="pp-card-img-ph">🌸</div>}
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
+                      <div className="pp-card-body">
+                        {/* Show all categories as pills */}
+                        {productCats.length > 0 && (
+                          <div className="pp-card-cats">
+                            {productCats.map(cat => (
+                              <span key={cat} className="pp-card-cat">{getCatLabel(cat)}</span>
+                            ))}
+                          </div>
+                        )}
+                        <h3 className="pp-card-name">{product.name}</h3>
+                        {product.colors?.length > 0 && (
+                          <div className="pp-card-colors">
+                            {product.colors.slice(0, 6).map(c => (
+                              <div key={c} className="pp-color-dot" style={{ background: COLOR_MAP[c] || '#ccc' }} title={c} />
+                            ))}
+                            {product.colors.length > 6 && <span style={{ fontSize: '0.62rem', color: 'var(--muted)' }}>+{product.colors.length - 6}</span>}
+                          </div>
+                        )}
+                        <div className="pp-card-footer">
+                          <span className="pp-card-price">₹{parseFloat(product.base_price).toLocaleString('en-IN')}</span>
+                          <span className={`pp-badge ${product.in_stock ? 'pp-badge-in' : 'pp-badge-out'}`}>
+                            {product.in_stock ? 'In Stock' : 'Sold Out'}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             )}
           </div>
