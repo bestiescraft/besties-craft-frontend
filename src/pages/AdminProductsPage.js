@@ -5,37 +5,32 @@ import { AdminLayout } from '@/components/AdminLayout';
 
 const API = process.env.REACT_APP_API_URL || 'https://besties-craft-backend-1.onrender.com';
 
-// ✅ 6 categories only — values now match their real names
 const CATEGORIES = [
   { label: 'Bracelets',        value: 'bracelets',        emoji: '📿' },
-  { label: 'Handmade Flowers', value: 'handmade-flowers',  emoji: '🌸' },
-  { label: 'Keychains',        value: 'keychains',         emoji: '🔑' },
-  { label: 'Hair Accessories', value: 'hair-accessories',  emoji: '🎀' },
-  { label: 'Gifting Items',    value: 'gifting-items',     emoji: '🎁' },
-  { label: 'Crafts',           value: 'crafts',            emoji: '🎨' },
+  { label: 'Handmade Flowers', value: 'handmade-flowers', emoji: '🌸' },
+  { label: 'Keychains',        value: 'keychains',        emoji: '🔑' },
+  { label: 'Hair Accessories', value: 'hair-accessories', emoji: '🎀' },
+  { label: 'Gifting Items',    value: 'gifting-items',    emoji: '🎁' },
+  { label: 'Crafts',           value: 'crafts',           emoji: '🎨' },
 ];
 
-// Map old bad values → new clean values (for display of existing products)
 const LEGACY_MAP = {
-  scarves:  'handmade-flowers',
-  blankets: 'keychains',
-  bags:     'hair-accessories',
-  wool:     'gifting-items',
-  handmade: 'crafts',
-  general:  'crafts',
+  scarves: 'handmade-flowers', blankets: 'keychains',
+  bags: 'hair-accessories', wool: 'gifting-items',
+  handmade: 'crafts', general: 'crafts',
 };
 
 const normalizeCategory = (val) => {
   if (!val) return '';
-  if (LEGACY_MAP[val]) return LEGACY_MAP[val];
-  return val;
+  return LEGACY_MAP[val] || val;
 };
 
+// ── KEY FIX: always returns a clean deduplicated array ──
 const normalizeCategoriesArray = (cats) => {
-  if (!cats) return [];
-  if (Array.isArray(cats)) return cats.map(normalizeCategory).filter(Boolean);
-  // single string — wrap in array
-  return [normalizeCategory(cats)].filter(Boolean);
+  let raw = [];
+  if (Array.isArray(cats))       raw = cats;
+  else if (typeof cats === 'string' && cats) raw = [cats];
+  return [...new Set(raw.map(normalizeCategory).filter(Boolean))];
 };
 
 const PRESET_COLORS = [
@@ -65,7 +60,7 @@ function AdminProductsPage() {
   const [isModalOpen,     setIsModalOpen]     = useState(false);
   const [editingProduct,  setEditingProduct]  = useState(null);
   const [formData,        setFormData]        = useState({
-    name: '', description: '', base_price: '', categories: [], stock: '', colors: []
+    name: '', description: '', base_price: '', categories: [], stock: '', colors: [],
   });
   const [imagePreviews,   setImagePreviews]   = useState([]);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -81,7 +76,7 @@ function AdminProductsPage() {
       const adminToken = localStorage.getItem('admin_token');
       if (!adminToken) { toast.error('Please login as admin first'); setProducts([]); return; }
       const response = await axios.get(`${API}/api/admin/products`, {
-        headers: { 'admin-token': adminToken }
+        headers: { 'admin-token': adminToken },
       });
       const fetched = response.data.products || response.data || [];
       setProducts(Array.isArray(fetched) ? fetched : []);
@@ -94,11 +89,17 @@ function AdminProductsPage() {
   const openEditModal = (product) => {
     if (!product?._id) { toast.error('Invalid product data'); return; }
     setEditingProduct(product);
+
+    // ── FIXED: merge both categories and category fields when loading for edit ──
+    const merged = normalizeCategoriesArray(
+      product.categories?.length > 0 ? product.categories : product.category
+    );
+
     setFormData({
       name:        product.name || '',
       description: product.description || '',
       base_price:  product.base_price ? parseFloat(product.base_price).toString() : '0',
-      categories:  normalizeCategoriesArray(product.categories || product.category),
+      categories:  merged,
       stock:       product.stock !== undefined ? String(product.stock) : '0',
       colors:      product.colors || [],
     });
@@ -129,13 +130,12 @@ function AdminProductsPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Toggle a category in/out of the selected array
   const toggleCategory = (catValue) => {
     setFormData(prev => ({
       ...prev,
       categories: prev.categories.includes(catValue)
         ? prev.categories.filter(c => c !== catValue)
-        : [...prev.categories, catValue]
+        : [...prev.categories, catValue],
     }));
   };
 
@@ -159,7 +159,7 @@ function AdminProductsPage() {
       ...prev,
       colors: prev.colors.includes(colorName)
         ? prev.colors.filter(c => c !== colorName)
-        : [...prev.colors, colorName]
+        : [...prev.colors, colorName],
     }));
   };
 
@@ -167,7 +167,8 @@ function AdminProductsPage() {
     const fd = new FormData();
     fd.append('file', file);
     const res = await axios.post(`${API}/api/upload-image`, fd, {
-      headers: { 'admin-token': adminToken, 'Content-Type': 'multipart/form-data' }, timeout: 30000
+      headers: { 'admin-token': adminToken, 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
     });
     return res.data.image_url;
   };
@@ -181,9 +182,11 @@ function AdminProductsPage() {
     }
     const stockValue = parseInt(formData.stock, 10);
     if (isNaN(stockValue)) { toast.error('Stock must be a valid number'); return; }
+
     const adminToken = localStorage.getItem('admin_token');
     if (!adminToken) { toast.error('Admin session expired'); return; }
 
+    // Upload any new images
     let finalImages = imagePreviews
       .filter(p => p.uploaded)
       .map((p, i) => ({ url: p.url, alt_text: formData.name, is_primary: i === 0 }));
@@ -203,27 +206,29 @@ function AdminProductsPage() {
       } finally { setUploadingImages(false); }
     }
 
+    // ── FIXED: always send categories as array AND category as first item string ──
+    const cats = formData.categories;
     const productData = {
       name:        formData.name.trim(),
       description: formData.description.trim() || '',
       base_price:  parseFloat(formData.base_price),
       images:      finalImages,
-      // Send both: categories array (new) + category string (backwards compat)
-      categories:  formData.categories,
-      category:    formData.categories[0] || 'crafts',
+      categories:  cats,             // array → saved to DB as array
+      category:    cats[0] || 'crafts', // string → legacy field, kept in sync
       stock:       stockValue,
       colors:      formData.colors,
-      variants: [], skus: []
+      variants:    [],
+      skus:        [],
     };
 
     try {
       const config = { headers: { 'admin-token': adminToken, 'Content-Type': 'application/json' } };
       if (editingProduct?._id) {
         await axios.put(`${API}/api/admin/products/${editingProduct._id}`, productData, config);
-        toast.success('Product updated!');
+        toast.success('Product updated! ✓');
       } else {
         await axios.post(`${API}/api/admin/products`, productData, config);
-        toast.success('Product created!');
+        toast.success('Product created! ✓');
       }
       closeModal();
       fetchProducts();
@@ -236,36 +241,41 @@ function AdminProductsPage() {
     if (!window.confirm('Delete this product?')) return;
     try {
       const adminToken = localStorage.getItem('admin_token');
-      await axios.delete(`${API}/api/admin/products/${productId}`, { headers: { 'admin-token': adminToken } });
+      await axios.delete(`${API}/api/admin/products/${productId}`, {
+        headers: { 'admin-token': adminToken },
+      });
       toast.success('Product deleted');
       fetchProducts();
     } catch { toast.error('Failed to delete product'); }
   };
 
+  // ── FIXED: client-side filter merges both fields ──
   const displayed = products.filter(p => {
     const matchSearch = !searchTerm || p.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    const productCats = normalizeCategoriesArray(p.categories || p.category);
-    const matchCat = !filterCat || productCats.includes(filterCat) || normalizeCategory(p.category) === filterCat;
+    const rawCats = [
+      ...(Array.isArray(p.categories) ? p.categories : p.categories ? [p.categories] : []),
+      ...(p.category && !Array.isArray(p.category) ? [p.category] : []),
+    ];
+    const productCats = [...new Set(rawCats.map(normalizeCategory).filter(Boolean))];
+    const matchCat = !filterCat || productCats.includes(filterCat);
     return matchSearch && matchCat;
   });
 
   const stockClass = (stock) =>
-    stock === 0 ? 'bg-red-100 text-red-700' :
-    stock < 5   ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-green-100 text-green-700';
+    stock === 0   ? 'bg-red-100 text-red-700'    :
+    stock < 5     ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-green-100 text-green-700';
 
   return (
     <AdminLayout>
-      {/* Page header */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
         <div>
           <h1 className="text-4xl font-serif font-semibold text-stone-900 mb-1">Products</h1>
           <p className="text-stone-500 text-sm">Manage your handcrafted product catalogue</p>
         </div>
-        <button
-          onClick={openAddModal}
-          className="inline-flex items-center gap-2 bg-stone-900 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-stone-700 transition-colors shadow-sm"
-        >
+        <button onClick={openAddModal}
+          className="inline-flex items-center gap-2 bg-stone-900 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-stone-700 transition-colors shadow-sm">
           + Add Product
         </button>
       </div>
@@ -290,11 +300,9 @@ function AdminProductsPage() {
       <div className="flex flex-wrap gap-3 mb-6 items-center">
         <div className="relative flex-1 min-w-[180px]">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none">🔍</span>
-          <input
-            type="text" placeholder="Search products…" value={searchTerm}
+          <input type="text" placeholder="Search products…" value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-4 py-2.5 border border-stone-200 rounded-xl text-sm bg-white text-stone-800 outline-none focus:border-stone-400 transition-colors"
-          />
+            className="w-full pl-8 pr-4 py-2.5 border border-stone-200 rounded-xl text-sm bg-white text-stone-800 outline-none focus:border-stone-400 transition-colors" />
         </div>
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
           className="px-4 py-2.5 border border-stone-200 rounded-xl text-sm bg-white text-stone-800 outline-none focus:border-stone-400 cursor-pointer">
@@ -304,14 +312,16 @@ function AdminProductsPage() {
         <span className="text-xs text-stone-400 whitespace-nowrap">{displayed.length} of {products.length} products</span>
       </div>
 
-      {/* Products table */}
+      {/* Table */}
       <div className="bg-white rounded-2xl border border-stone-100 overflow-hidden shadow-sm">
         {loading ? (
           <div className="text-center py-16 text-stone-400 text-sm">Loading products…</div>
         ) : displayed.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-4xl mb-3">📦</p>
-            <p className="text-stone-400 text-sm">{products.length === 0 ? 'No products yet. Add your first!' : 'No products match your filters.'}</p>
+            <p className="text-stone-400 text-sm">
+              {products.length === 0 ? 'No products yet. Add your first!' : 'No products match your filters.'}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -327,7 +337,13 @@ function AdminProductsPage() {
                 {displayed.map(product => {
                   const stock = product.stock || 0;
                   const primaryImg = product.images?.[0]?.url ? fixImageUrl(product.images[0].url) : null;
-                  const productCats = normalizeCategoriesArray(product.categories || product.category);
+                  // ── FIXED: merge both fields for display in table ──
+                  const rawCats = [
+                    ...(Array.isArray(product.categories) ? product.categories : product.categories ? [product.categories] : []),
+                    ...(product.category && !Array.isArray(product.category) ? [product.category] : []),
+                  ];
+                  const productCats = [...new Set(rawCats.map(normalizeCategory).filter(Boolean))];
+
                   return (
                     <tr key={product._id} className="hover:bg-stone-50 transition-colors">
                       {/* Product */}
@@ -336,7 +352,7 @@ function AdminProductsPage() {
                           {primaryImg ? (
                             <img src={primaryImg} alt={product.name}
                               className="w-12 h-12 rounded-xl object-cover border border-stone-100 flex-shrink-0"
-                              onError={e => { e.target.style.display='none'; }} />
+                              onError={e => { e.target.style.display = 'none'; }} />
                           ) : (
                             <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center text-xl flex-shrink-0">
                               {getCatInfo(productCats[0] || '').emoji}
@@ -349,7 +365,7 @@ function AdminProductsPage() {
                         </div>
                       </td>
 
-                      {/* Categories */}
+                      {/* Categories — shows ALL of them */}
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap gap-1">
                           {productCats.length > 0 ? productCats.map(cat => {
@@ -359,25 +375,20 @@ function AdminProductsPage() {
                                 {info.emoji} {info.label}
                               </span>
                             );
-                          }) : (
-                            <span className="text-stone-300 text-sm">—</span>
-                          )}
+                          }) : <span className="text-stone-300 text-sm">—</span>}
                         </div>
                       </td>
 
-                      {/* Price */}
                       <td className="px-5 py-4 font-semibold text-stone-700 text-sm">
                         ₹{parseFloat(product.base_price).toLocaleString('en-IN')}
                       </td>
 
-                      {/* Stock */}
                       <td className="px-5 py-4">
                         <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${stockClass(stock)}`}>
                           {stock} units
                         </span>
                       </td>
 
-                      {/* Colours */}
                       <td className="px-5 py-4">
                         <div className="flex gap-1 flex-wrap">
                           {product.colors?.length > 0
@@ -385,12 +396,10 @@ function AdminProductsPage() {
                                 const p = PRESET_COLORS.find(x => x.name === c);
                                 return p ? <div key={c} title={c} className="w-4 h-4 rounded-full border border-black/10" style={{ background: p.hex }} /> : null;
                               })
-                            : <span className="text-stone-300 text-sm">—</span>
-                          }
+                            : <span className="text-stone-300 text-sm">—</span>}
                         </div>
                       </td>
 
-                      {/* Actions */}
                       <td className="px-5 py-4">
                         <div className="flex gap-2">
                           <button onClick={() => openEditModal(product)}
@@ -417,7 +426,6 @@ function AdminProductsPage() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={closeModal}>
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
 
-            {/* Modal header */}
             <div className="sticky top-0 bg-white border-b border-stone-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
               <div className="flex items-center gap-3">
                 <button onClick={closeModal} className="flex items-center gap-1.5 text-stone-400 hover:text-stone-700 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
@@ -427,7 +435,7 @@ function AdminProductsPage() {
                   {editingProduct ? '✏️ Edit Product' : '✨ Add New Product'}
                 </h2>
               </div>
-              <button onClick={closeModal} className="w-8 h-8 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-900 transition-colors text-sm">✕</button>
+              <button onClick={closeModal} className="w-8 h-8 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 transition-colors text-sm">✕</button>
             </div>
 
             <div className="p-6 space-y-7">
@@ -460,25 +468,23 @@ function AdminProductsPage() {
                 </div>
               </section>
 
-              {/* Categories — multi-select checkboxes */}
+              {/* Categories */}
               <section>
                 <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-1 pb-2 border-b border-stone-100">
                   Categories <span className="normal-case font-normal text-stone-400">(select up to 3)</span>
                 </p>
-                <p className="text-xs text-stone-400 mb-3">A product can appear in multiple categories</p>
+                <p className="text-xs text-stone-400 mb-3">A product can appear in multiple categories — tick all that apply</p>
                 <div className="grid grid-cols-3 gap-2">
                   {CATEGORIES.map(cat => {
-                    const selected = formData.categories.includes(cat.value);
+                    const selected   = formData.categories.includes(cat.value);
                     const maxReached = formData.categories.length >= 3 && !selected;
                     return (
                       <button key={cat.value} type="button"
                         onClick={() => !maxReached && toggleCategory(cat.value)}
                         className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-all text-sm font-semibold ${
-                          selected
-                            ? 'border-stone-900 bg-stone-900 text-white'
-                            : maxReached
-                            ? 'border-stone-100 bg-stone-50 text-stone-300 cursor-not-allowed'
-                            : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-400 cursor-pointer'
+                          selected     ? 'border-stone-900 bg-stone-900 text-white'
+                          : maxReached ? 'border-stone-100 bg-stone-50 text-stone-300 cursor-not-allowed'
+                                       : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-400 cursor-pointer'
                         }`}>
                         <span className="text-lg">{cat.emoji}</span>
                         <span className="leading-tight text-xs">{cat.label}</span>
@@ -489,7 +495,7 @@ function AdminProductsPage() {
                 </div>
                 {formData.categories.length > 0 && (
                   <p className="mt-2 text-xs text-stone-500 bg-stone-50 border border-stone-200 px-3 py-2 rounded-lg">
-                    Selected: {formData.categories.map(v => getCatInfo(v).label).join(' · ')}
+                    ✓ Selected: {formData.categories.map(v => getCatInfo(v).label).join(' · ')}
                   </p>
                 )}
               </section>
@@ -502,8 +508,8 @@ function AdminProductsPage() {
                 <div className="grid grid-cols-5 gap-2 mb-2">
                   {imagePreviews.map((img, i) => (
                     <div key={i} className="aspect-square rounded-xl overflow-hidden border border-stone-200 relative group">
-                      <img src={fixImageUrl(img.url)} alt={`Preview ${i+1}`} className="w-full h-full object-cover"
-                        onError={e => { e.target.src='https://via.placeholder.com/200x200/f5f5f5/999?text=Err'; }} />
+                      <img src={fixImageUrl(img.url)} alt={`Preview ${i + 1}`} className="w-full h-full object-cover"
+                        onError={e => { e.target.src = 'https://via.placeholder.com/200x200/f5f5f5/999?text=Err'; }} />
                       {i === 0 && <span className="absolute top-1 left-1 bg-stone-900 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">MAIN</span>}
                       <button onClick={() => removeImage(i)}
                         className="absolute top-1 right-1 w-5 h-5 bg-black/50 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
@@ -531,7 +537,10 @@ function AdminProductsPage() {
                         className="flex flex-col items-center gap-1">
                         <div className={`w-7 h-7 rounded-full transition-all ${selected ? 'ring-2 ring-offset-2 ring-stone-900 scale-110' : 'hover:scale-105'}`}
                           style={{ background: color.hex, boxShadow: '0 0 0 1.5px rgba(0,0,0,0.08)' }}>
-                          {selected && <span className="w-full h-full flex items-center justify-center text-white text-xs font-bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>✓</span>}
+                          {selected && (
+                            <span className="w-full h-full flex items-center justify-center text-white text-xs font-bold"
+                              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>✓</span>
+                          )}
                         </div>
                         <span className="text-[9px] text-stone-400 text-center leading-tight">{color.name}</span>
                       </button>
@@ -546,7 +555,7 @@ function AdminProductsPage() {
               </section>
             </div>
 
-            {/* Modal footer */}
+            {/* Footer */}
             <div className="sticky bottom-0 bg-white border-t border-stone-100 px-6 py-4 flex justify-end gap-3 rounded-b-2xl">
               <button onClick={closeModal}
                 className="px-5 py-2.5 bg-stone-100 text-stone-700 rounded-xl text-sm font-semibold hover:bg-stone-200 transition-colors">
