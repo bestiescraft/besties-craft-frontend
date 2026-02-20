@@ -13,6 +13,27 @@ const BACKEND_URL =
   process.env.REACT_APP_BACKEND_URL?.replace(/\/$/, '') ||
   'https://besties-craft-backend-1.onrender.com';
 
+// ── The only 6 valid categories for Besties Craft ────────────────────────────
+const VALID_CATEGORIES = [
+  { value: 'bracelets',        name: 'Bracelets' },
+  { value: 'handmade-flowers', name: 'Handmade Flowers' },
+  { value: 'keychains',        name: 'Keychains' },
+  { value: 'hair-accessories', name: 'Hair Accessories' },
+  { value: 'gifting-items',    name: 'Gifting Items' },
+  { value: 'crafts',           name: 'Crafts' },
+];
+
+// Returns the correct display name if the raw backend value matches one of the
+// 6 valid categories — otherwise returns null (so nothing is shown).
+const normalizeCategory = (raw) => {
+  if (!raw) return null;
+  const slug = raw.toLowerCase().trim().replace(/\s+/g, '-');
+  const match = VALID_CATEGORIES.find(
+    c => c.value === slug || c.name.toLowerCase() === slug.replace(/-/g, ' ')
+  );
+  return match ? match.name : null;
+};
+
 const PRESET_COLORS = [
   { name: 'Red',      hex: '#EF4444' }, { name: 'Pink',     hex: '#EC4899' },
   { name: 'Purple',   hex: '#A855F7' }, { name: 'Blue',     hex: '#3B82F6' },
@@ -330,6 +351,9 @@ const ProductDetailPage = () => {
   const inStock = (product.in_stock === true) || (product.stock !== undefined && product.stock > 0);
   const colors  = product.colors || [];
 
+  // ── Normalize category: only show if it's one of the 6 valid ones ──
+  const displayCategory = normalizeCategory(product.category);
+
   return (
     <>
       <style>{`
@@ -395,7 +419,12 @@ const ProductDetailPage = () => {
 
             {/* Info */}
             <motion.div initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} transition={{duration:.45,delay:.15}} className="pdp-info-col" style={st.infoCol}>
-              {product.category && <span style={st.categoryTag}>{product.category.toUpperCase()}</span>}
+
+              {/* ── FIXED: only show category if it's one of the 6 valid ones ── */}
+              {displayCategory && (
+                <span style={st.categoryTag}>{displayCategory.toUpperCase()}</span>
+              )}
+
               <h1 className="pdp-product-name" style={st.productName}>{product.name}</h1>
 
               {/* Inline rating */}
