@@ -37,77 +37,64 @@ const FEATURES = [
 
 const PLACEHOLDER = 'https://placehold.co/400x400/e8e0d5/a09080?text=Craft';
 
-// ── Logo E — the premium wordmark banner shown in the hero ─────────────────
-// Faithfully recreates the Logo E design from logos2.html Vol.2
-// Sits ABOVE the "Handcrafted in India" pill, BELOW the Navbar
+// ── Logo Wordmark — properly sized for hero section ──────────────
+// Sits below Navbar, above "Handcrafted in India" pill
+// Uses clamp so it looks great on mobile and desktop both
 const LogoEHero = () => (
   <motion.div
     initial={{ opacity: 0, y: -8 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.55, ease: 'easeOut' }}
     style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'flex-start',
-      marginBottom: '1.75rem',
+      display: 'inline-block',
+      marginBottom: '2rem',
     }}
   >
-    <div style={{ position: 'relative' }}>
-
-      {/* ── Top ornamental row ── */}
+    {/* Top ornamental line */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 12, marginBottom: 5,
-      }}>
-        <div style={{
-          width: 56, height: 1,
-          background: 'linear-gradient(90deg, transparent, rgba(194,96,42,0.55))',
-        }} />
-        <span style={{
-          color: '#c2602a', fontSize: '0.52rem', letterSpacing: '5px', lineHeight: 1,
-        }}>✦ ✦ ✦</span>
-        <div style={{
-          width: 56, height: 1,
-          background: 'linear-gradient(90deg, rgba(194,96,42,0.55), transparent)',
-        }} />
-      </div>
-
-      {/* ── Brand name ── */}
+        flex: 1, maxWidth: 64, height: 1,
+        background: 'linear-gradient(90deg, transparent, rgba(194,96,42,0.6))',
+      }} />
+      <span style={{ color: '#c2602a', fontSize: '0.6rem', letterSpacing: '4px' }}>✦ ✦ ✦</span>
       <div style={{
-        fontFamily: "'Cormorant Garamond', 'Playfair Display', Georgia, serif",
-        fontSize: 'clamp(1.7rem, 3.5vw, 2.6rem)',
-        fontWeight: 700,
-        letterSpacing: '0.045em',
-        lineHeight: 1,
-        color: '#2c1810',
+        flex: 1, maxWidth: 64, height: 1,
+        background: 'linear-gradient(90deg, rgba(194,96,42,0.6), transparent)',
+      }} />
+    </div>
+
+    {/* Brand name — large and readable */}
+    <div style={{
+      fontFamily: "'Cormorant Garamond', 'Playfair Display', Georgia, serif",
+      fontSize: 'clamp(2.2rem, 5vw, 3.4rem)',
+      fontWeight: 700,
+      letterSpacing: '0.04em',
+      lineHeight: 1,
+      color: '#2c1810',
+      whiteSpace: 'nowrap',
+    }}>
+      Besties&nbsp;
+      <em style={{
+        fontStyle: 'italic',
+        color: '#c2602a',
+        textShadow: '0 1px 18px rgba(194,96,42,0.18)',
+      }}>Craft</em>
+    </div>
+
+    {/* Bottom ornamental line */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+      <div style={{ width: 40, height: 1, background: 'rgba(194,96,42,0.35)' }} />
+      <span style={{
+        fontFamily: "'Lato', sans-serif",
+        fontSize: '0.5rem',
+        letterSpacing: '0.28em',
+        color: 'rgba(44,24,16,0.4)',
+        textTransform: 'uppercase',
         whiteSpace: 'nowrap',
       }}>
-        Besties&nbsp;
-        <em style={{
-          fontStyle: 'italic',
-          color: '#c2602a',
-          // subtle text-shadow gives it the "premium dark" glow from Logo E
-          textShadow: '0 1px 18px rgba(194,96,42,0.18)',
-        }}>Craft</em>
-      </div>
-
-      {/* ── Bottom ornamental row ── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10, marginTop: 6,
-      }}>
-        <div style={{ width: 36, height: 1, background: 'rgba(194,96,42,0.32)' }} />
-        <span style={{
-          fontFamily: "'Lato', sans-serif",
-          fontSize: '0.44rem',
-          letterSpacing: '0.3em',
-          color: 'rgba(44,24,16,0.42)',
-          textTransform: 'uppercase',
-          whiteSpace: 'nowrap',
-        }}>
-          Handcrafted in India · Est. 2025
-        </span>
-        <div style={{ width: 36, height: 1, background: 'rgba(194,96,42,0.32)' }} />
-      </div>
-
+        Handcrafted in India · Est. 2025
+      </span>
+      <div style={{ width: 40, height: 1, background: 'rgba(194,96,42,0.35)' }} />
     </div>
   </motion.div>
 );
@@ -143,7 +130,8 @@ export default function HomePage() {
 
         .hp-hero {
           min-height: 88vh; display: flex; align-items: center;
-          background: var(--warm); position: relative; overflow: hidden; padding: 4rem 2rem;
+          background: var(--warm); position: relative; overflow: hidden;
+          padding: 5rem 2rem 4rem;
         }
         .hp-hero::before {
           content: ''; position: absolute; inset: 0;
@@ -157,7 +145,6 @@ export default function HomePage() {
           position: relative; z-index: 1;
         }
 
-        /* ── Hero tags row ── */
         .hp-hero-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
         .hp-hero-tag {
           display: inline-flex; align-items: center; gap: 0.4rem;
@@ -195,6 +182,7 @@ export default function HomePage() {
           transition: border-color 0.2s, background 0.2s; font-family: 'Lato', sans-serif;
         }
         .hp-btn-outline:hover { border-color: var(--dark); background: var(--warm); }
+
         .hp-hero-imgs {
           display: grid; grid-template-columns: 1fr 1fr;
           grid-template-rows: 1fr 1fr; gap: 0.75rem; height: 480px;
@@ -270,11 +258,13 @@ export default function HomePage() {
           .hp-why-grid     { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 768px) {
-          .hp-hero-inner   { grid-template-columns: 1fr; }
+          .hp-hero         { padding: 4rem 1.5rem 3rem; min-height: auto; }
+          .hp-hero-inner   { grid-template-columns: 1fr; gap: 2rem; }
           .hp-hero-imgs    { display: none; }
           .hp-cats-grid    { grid-template-columns: repeat(3, 1fr); }
         }
         @media (max-width: 480px) {
+          .hp-hero         { padding: 3rem 1rem 2.5rem; }
           .hp-cats-grid    { grid-template-columns: repeat(2, 1fr); }
           .hp-products-grid{ grid-template-columns: 1fr; }
           .hp-why-grid     { grid-template-columns: 1fr; }
@@ -292,11 +282,10 @@ export default function HomePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              {/* ══ Logo E — premium wordmark, above the tags ══
-                  Placed exactly: below Navbar, above "Handcrafted in India" pill */}
+              {/* Logo wordmark — below Navbar, above tags, properly sized */}
               <LogoEHero />
 
-              {/* ── 3 tags row ── */}
+              {/* Tags row */}
               <div className="hp-hero-tags">
                 <span className="hp-hero-tag hp-tag-primary">
                   <Sparkles size={12} /> Handcrafted in India

@@ -7,7 +7,8 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL?.replace(/\/$/, '') ||
+  'https://besties-craft-backend-1.onrender.com';
 const API = `${BACKEND_URL}/api`;
 
 const OrderConfirmationPage = () => {
@@ -19,13 +20,16 @@ const OrderConfirmationPage = () => {
   const fetchOrder = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      const user = JSON.parse(localStorage.getItem('user'));
+      const userRaw = localStorage.getItem('user');
+      if (!userRaw) { setLoading(false); return; }
+      const user = JSON.parse(userRaw);
       const response = await axios.get(
         `${API}/orders/user/${user.id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      const foundOrder = response.data.find(o => o.id === orderId);
-      setOrder(foundOrder);
+      const orders = Array.isArray(response.data) ? response.data : [];
+      const foundOrder = orders.find(o => o.id === orderId || o._id === orderId);
+      setOrder(foundOrder || null);
     } catch (error) {
       console.error('Error fetching order:', error);
     } finally {
@@ -33,16 +37,23 @@ const OrderConfirmationPage = () => {
     }
   }, [orderId]);
 
-  useEffect(() => {
-    fetchOrder();
-  }, [fetchOrder]);
+  useEffect(() => { fetchOrder(); }, [fetchOrder]);
+
+  // Safe price calculation — handles null/undefined price
+  const safePrice = (price) => {
+    const p = parseFloat(price);
+    return isNaN(p) ? 0 : p;
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-stone-600">Loading order details...</p>
+          <div className="text-center">
+            <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>⏳</div>
+            <p className="text-stone-600">Loading order details...</p>
+          </div>
         </div>
       </div>
     );
@@ -52,98 +63,149 @@ const OrderConfirmationPage = () => {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
-        <div className="flex-1 flex flex-col items-center justify-center">
-          <p className="text-stone-600 mb-4">Order not found</p>
-          <Button onClick={() => navigate('/')} className="btn-primary">
-            Go to Home
-          </Button>
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📦</div>
+          <p className="text-stone-700 font-medium mb-2">Order not found</p>
+          <p className="text-stone-400 text-sm mb-6">It may still be processing. Check your orders page.</p>
+          <div className="flex gap-3">
+            <Button onClick={() => navigate('/orders')} className="btn-primary">
+              View My Orders
+            </Button>
+            <Button onClick={() => navigate('/')} variant="outline">
+              Go Home
+            </Button>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ background: '#faf7f2' }}>
       <Navbar />
 
       <div className="py-12 md:py-20 px-6 md:px-12">
         <div className="max-w-3xl mx-auto">
+
+          {/* ── Success Header ── */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="text-center mb-12"
+            className="text-center mb-10"
           >
             <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
-              <CheckCircle className="w-12 h-12 text-green-600" data-testid="success-icon" />
+              <CheckCircle className="w-12 h-12 text-green-600" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-serif font-semibold text-stone-900 mb-4" data-testid="confirmation-title">
-              Order Confirmed!
+            <h1 className="text-4xl md:text-5xl font-serif font-semibold text-stone-900 mb-4">
+              Order Confirmed! 🎉
             </h1>
-            <p className="text-lg text-stone-600">
+            <p className="text-lg text-stone-500">
               Thank you for your order. We'll contact you shortly for confirmation.
             </p>
           </motion.div>
 
+          {/* ── Order Details Card ── */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-stone-100 mb-8"
+            className="bg-white rounded-2xl p-8 md:p-10 shadow-md border border-stone-100 mb-8"
           >
             <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-6">Order Details</h2>
 
-            <div className="space-y-4 mb-8">
-              <div className="flex justify-between pb-3 border-b border-stone-100">
-                <span className="text-stone-600">Order ID</span>
-                <span className="font-medium text-stone-900" data-testid="order-id">{order.id}</span>
+            <div className="space-y-3 mb-8">
+              <div className="flex justify-between py-3 border-b border-stone-100">
+                <span className="text-stone-500">Order ID</span>
+                <span className="font-medium text-stone-900 text-sm break-all ml-4">{order.id || order._id}</span>
               </div>
-              <div className="flex justify-between pb-3 border-b border-stone-100">
-                <span className="text-stone-600">Email</span>
-                <span className="font-medium text-stone-900" data-testid="order-email">{order.user_email}</span>
+              {order.user_email && (
+                <div className="flex justify-between py-3 border-b border-stone-100">
+                  <span className="text-stone-500">Email</span>
+                  <span className="font-medium text-stone-900">{order.user_email}</span>
+                </div>
+              )}
+              {order.user_phone && (
+                <div className="flex justify-between py-3 border-b border-stone-100">
+                  <span className="text-stone-500">Phone</span>
+                  <span className="font-medium text-stone-900">{order.user_phone}</span>
+                </div>
+              )}
+              <div className="flex justify-between py-3 border-b border-stone-100">
+                <span className="text-stone-500">Payment Status</span>
+                <span className={`font-medium capitalize px-2 py-0.5 rounded-full text-sm ${
+                  order.payment_status === 'paid'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {order.payment_status || 'pending'}
+                </span>
               </div>
-              <div className="flex justify-between pb-3 border-b border-stone-100">
-                <span className="text-stone-600">Phone</span>
-                <span className="font-medium text-stone-900" data-testid="order-phone">{order.user_phone}</span>
+              <div className="flex justify-between py-3 border-b border-stone-100">
+                <span className="text-stone-500">Order Status</span>
+                <span className="font-medium text-amber-700 capitalize">
+                  {order.order_status || 'pending'}
+                </span>
               </div>
-              <div className="flex justify-between pb-3 border-b border-stone-100">
-                <span className="text-stone-600">Payment Status</span>
-                <span className="font-medium text-green-600 capitalize" data-testid="payment-status">{order.payment_status}</span>
-              </div>
-              <div className="flex justify-between pb-3 border-b border-stone-100">
-                <span className="text-stone-600">Order Status</span>
-                <span className="font-medium text-terracotta capitalize" data-testid="order-status">{order.order_status}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-stone-600">Total Amount</span>
-                <span className="font-semibold text-stone-900 text-2xl" data-testid="order-total">₹{order.total_amount}</span>
+              <div className="flex justify-between py-3">
+                <span className="text-stone-500">Total Amount</span>
+                <span className="font-bold text-stone-900 text-2xl">
+                  ₹{parseFloat(order.total_amount || 0).toLocaleString('en-IN')}
+                </span>
               </div>
             </div>
 
+            {/* ── Items ── */}
             <h3 className="text-xl font-serif font-semibold text-stone-900 mb-4">Items Ordered</h3>
-            <div className="space-y-3" data-testid="order-items">
-              {order.items.map((item, index) => (
-                <div key={index} className="flex items-center justify-between py-3 border-b border-stone-100 last:border-0" data-testid={`order-item-${index}`}>
-                  <div>
-                    <p className="font-medium text-stone-900">{item.product_name}</p>
-                    <p className="text-sm text-stone-600">Quantity: {item.quantity}</p>
+            <div className="space-y-3">
+              {(order.items || []).map((item, index) => {
+                const itemPrice = safePrice(item.price);
+                const itemQty   = parseInt(item.quantity) || 1;
+                const itemTotal = itemPrice * itemQty;
+
+                return (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between py-3 border-b border-stone-100 last:border-0"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-stone-900 truncate">
+                        {item.product_name || 'Product'}
+                      </p>
+                      <p className="text-sm text-stone-400">Qty: {itemQty}</p>
+                      {item.color && (
+                        <p className="text-xs text-stone-400">Colour: {item.color}</p>
+                      )}
+                      {item.customisation && (
+                        <p className="text-xs text-amber-600 mt-0.5">
+                          ✦ Custom: {item.customisation}
+                        </p>
+                      )}
+                    </div>
+                    <p className="font-semibold text-stone-900 ml-4">
+                      {itemPrice > 0
+                        ? `₹${itemTotal.toLocaleString('en-IN')}`
+                        : '—'}
+                    </p>
                   </div>
-                  <p className="font-semibold text-stone-900">₹{(item.price * item.quantity).toFixed(2)}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </motion.div>
 
+          {/* ── Actions ── */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button onClick={() => navigate('/orders')} className="btn-primary" data-testid="view-orders-button">
+            <Button onClick={() => navigate('/orders')} className="btn-primary">
               <Package className="w-5 h-5 mr-2" />
               View All Orders
             </Button>
-            <Button onClick={() => navigate('/products')} className="btn-secondary" data-testid="continue-shopping-button">
+            <Button onClick={() => navigate('/products')} variant="outline">
               Continue Shopping
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </div>
+
         </div>
       </div>
 
