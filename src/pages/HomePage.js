@@ -23,7 +23,7 @@ const FEATURES = [
   { icon: <Heart size={22} />,    title: 'Made with Love',     desc: 'Every piece is handcrafted with care and attention to detail.' },
   { icon: <Sparkles size={22} />, title: '100% Handmade',      desc: 'Authentic handmade goods — no factories, no mass production.' },
   { icon: <Package size={22} />,  title: 'Pan-India Delivery', desc: 'We ship to every corner of India with love-packed packaging.' },
-  { icon: <Star size={22} />,     title: 'Quality Guaranteed', desc: 'Unhappy? We offer hassle-free returns within 7 days.' },
+  { icon: <Star size={22} />,     title: 'Quality Guaranteed', desc: 'Premium materials, skilled hands — quality you can feel in every stitch.' },
 ];
 
 const PLACEHOLDER = 'https://placehold.co/400x400/e8e0d5/a09080?text=Craft';
@@ -120,7 +120,6 @@ export default function HomePage() {
         .hp-sec-title { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(1.8rem, 3vw, 2.6rem); font-weight: 700; color: var(--dark); margin: 0 0 0.75rem; }
         .hp-sec-sub { font-size: 0.95rem; color: var(--muted); max-width: 500px; margin: 0 auto; line-height: 1.7; }
 
-        /* Categories - now with desc */
         .hp-cats { padding: 5rem 2rem; background: var(--cream); }
         .hp-cats-grid { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; }
         .hp-cat-card {
@@ -203,10 +202,15 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* STATS */}
+        {/* STATS — "Easy Returns" removed, replaced with "Customisable" */}
         <div className="hp-stats">
           <div className="hp-stats-inner">
-            {[{ num: '500+', label: 'Happy Customers' }, { num: '100%', label: 'Handmade' }, { num: '50+', label: 'Unique Designs' }, { num: '7-Day', label: 'Easy Returns' }].map((s, i) => (
+            {[
+              { num: '500+',  label: 'Happy Customers' },
+              { num: '100%',  label: 'Handmade' },
+              { num: '50+',   label: 'Unique Designs' },
+              { num: '✦',     label: 'Customisable Orders' },
+            ].map((s, i) => (
               <motion.div key={i} className="hp-stat" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * i + 0.4 }}>
                 <span className="hp-stat-num">{s.num}</span>
                 <span className="hp-stat-label">{s.label}</span>

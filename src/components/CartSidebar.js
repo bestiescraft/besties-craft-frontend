@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ShoppingCart, Trash2, Plus, Minus, Package } from 'lucide-react';
+import { X, ShoppingCart, Trash2, Plus, Minus, Pencil } from 'lucide-react';
 import { useApp } from '@/App';
 import { useNavigate } from 'react-router-dom';
 
@@ -7,7 +7,6 @@ const BACKEND_URL =
   process.env.REACT_APP_API_URL?.replace(/\/$/, '') ||
   'https://besties-craft-backend-1.onrender.com';
 
-// Fix relative image URLs — same helper used across the app
 const fixImageUrl = (url) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
@@ -20,17 +19,23 @@ const CartSidebar = ({ isOpen, onClose }) => {
   const { cart, setCart } = useApp();
   const navigate = useNavigate();
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal  = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const removeFromCart = (productId, color) => {
-    setCart(cart.filter(item => !(item.product_id === productId && item.color === color)));
+  const removeFromCart = (productId, color, customisation) => {
+    setCart(cart.filter(item =>
+      !(item.product_id === productId &&
+        item.color === color &&
+        (item.customisation || null) === (customisation || null))
+    ));
   };
 
-  const updateQuantity = (productId, color, newQty) => {
-    if (newQty <= 0) { removeFromCart(productId, color); return; }
+  const updateQuantity = (productId, color, customisation, newQty) => {
+    if (newQty <= 0) { removeFromCart(productId, color, customisation); return; }
     setCart(cart.map(item =>
-      item.product_id === productId && item.color === color
+      item.product_id === productId &&
+      item.color === color &&
+      (item.customisation || null) === (customisation || null)
         ? { ...item, quantity: newQty }
         : item
     ));
@@ -62,8 +67,25 @@ const CartSidebar = ({ isOpen, onClose }) => {
         .cs-img{width:72px;height:72px;border-radius:10px;object-fit:cover;flex-shrink:0;border:1px solid #e8dfd0;background:#f2ede4}
         .cs-item-info{flex:1;min-width:0}
         .cs-item-name{font-weight:700;color:#2c1810;font-size:.9rem;font-family:sans-serif;margin-bottom:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        .cs-item-color{display:inline-flex;align-items:center;gap:.3rem;font-size:.72rem;color:#9a8070;font-family:sans-serif;margin-bottom:.45rem}
+        .cs-item-color{display:inline-flex;align-items:center;gap:.3rem;font-size:.72rem;color:#9a8070;font-family:sans-serif;margin-bottom:.3rem}
         .cs-color-dot{width:10px;height:10px;border-radius:50%;border:1px solid rgba(0,0,0,.15);flex-shrink:0}
+
+        /* customisation note pill */
+        .cs-custom-note{
+          display:flex;align-items:flex-start;gap:.3rem;
+          background:rgba(194,96,42,0.07);
+          border:1px solid rgba(194,96,42,0.18);
+          border-radius:8px;
+          padding:.35rem .55rem;
+          margin-bottom:.35rem;
+          font-size:.7rem;
+          color:#7a4020;
+          font-family:sans-serif;
+          line-height:1.45;
+          word-break:break-word;
+        }
+        .cs-custom-note svg{flex-shrink:0;margin-top:1px;color:#c2602a}
+
         .cs-item-price{font-size:.88rem;color:#5c3d2e;font-weight:700;font-family:sans-serif}
         .cs-qty{display:flex;align-items:center;gap:.5rem;margin-top:.5rem}
         .cs-qty-btn{width:28px;height:28px;border-radius:50%;border:1.5px solid #e8dfd0;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#4a3728;transition:all .15s;flex-shrink:0}
@@ -83,10 +105,8 @@ const CartSidebar = ({ isOpen, onClose }) => {
         .cs-continue-btn:hover{border-color:#c2602a;color:#c2602a}
       `}</style>
 
-      {/* Overlay */}
       {isOpen && <div className="cart-sidebar-overlay" onClick={onClose} />}
 
-      {/* Sidebar */}
       <div className={`cart-sidebar ${isOpen ? 'open' : 'closed'}`}>
         {/* Header */}
         <div className="cs-head">
@@ -109,10 +129,9 @@ const CartSidebar = ({ isOpen, onClose }) => {
           ) : (
             <div className="cs-items">
               {cart.map((item, i) => {
-                // ✅ Fix: use either item.image or item.image_url, fix relative paths
                 const imgSrc = fixImageUrl(item.image || item.image_url || '');
                 return (
-                  <div key={`${item.product_id}-${item.color || i}`} className="cs-item">
+                  <div key={`${item.product_id}-${item.color || ''}-${i}`} className="cs-item">
                     <img
                       src={imgSrc || PLACEHOLDER}
                       alt={item.product_name}
@@ -121,24 +140,35 @@ const CartSidebar = ({ isOpen, onClose }) => {
                     />
                     <div className="cs-item-info">
                       <div className="cs-item-name">{item.product_name}</div>
+
                       {item.color && (
                         <div className="cs-item-color">
                           <span className="cs-color-dot" style={{ background: getColorHex(item.color) }} />
                           {item.color}
                         </div>
                       )}
+
+                      {/* Customisation note */}
+                      {item.customisation && (
+                        <div className="cs-custom-note">
+                          <Pencil size={10} />
+                          <span>{item.customisation}</span>
+                        </div>
+                      )}
+
                       <div className="cs-item-price">₹{(item.price * item.quantity).toLocaleString('en-IN')}</div>
+
                       <div className="cs-qty">
-                        <button className="cs-qty-btn" onClick={() => updateQuantity(item.product_id, item.color, item.quantity - 1)}>
+                        <button className="cs-qty-btn" onClick={() => updateQuantity(item.product_id, item.color, item.customisation, item.quantity - 1)}>
                           <Minus size={12} />
                         </button>
                         <span className="cs-qty-num">{item.quantity}</span>
-                        <button className="cs-qty-btn" onClick={() => updateQuantity(item.product_id, item.color, item.quantity + 1)}>
+                        <button className="cs-qty-btn" onClick={() => updateQuantity(item.product_id, item.color, item.customisation, item.quantity + 1)}>
                           <Plus size={12} />
                         </button>
                       </div>
                     </div>
-                    <button className="cs-remove" onClick={() => removeFromCart(item.product_id, item.color)}>
+                    <button className="cs-remove" onClick={() => removeFromCart(item.product_id, item.color, item.customisation)}>
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -178,7 +208,6 @@ const CartSidebar = ({ isOpen, onClose }) => {
   );
 };
 
-// Helper — maps color name to hex for the swatch in the cart
 const COLOR_MAP = {
   Red:'#EF4444', Pink:'#EC4899', Purple:'#A855F7', Blue:'#3B82F6',
   'Sky Blue':'#38BDF8', Green:'#22C55E', Yellow:'#EAB308', Orange:'#F97316',
