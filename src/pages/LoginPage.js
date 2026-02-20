@@ -1,98 +1,112 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Phone, Lock } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { useApp } from '@/App';
-import axios from 'axios';
+import { auth } from '@/firebase';
+import {
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+} from 'firebase/auth';
 import { toast } from 'sonner';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// ── This URL must be added to Firebase Console →
+//    Authentication → Settings → Authorised domains
+const ACTION_CODE_SETTINGS = {
+  url:              window.location.origin + '/login',
+  handleCodeInApp:  true,
+};
 
 const LoginPage = () => {
-  const navigate = useNavigate();
-  const { user, setUser } = useApp();
-  const [loginType, setLoginType] = useState('email');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
+  const navigate       = useNavigate();
+  const { user }       = useApp();
 
-  // Redirect if already logged in
-  React.useEffect(() => {
-    if (user) {
-      toast.info('You are already logged in!');
-      navigate('/');
-    }
+  const [email,     setEmail]     = useState('');
+  const [linkSent,  setLinkSent]  = useState(false);
+  const [loading,   setLoading]   = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  // ── If user is already logged in, redirect home ──
+  useEffect(() => {
+    if (user) { navigate('/'); }
   }, [user, navigate]);
 
-  const sendOTP = async () => {
-    if (loginType === 'email') {
-      if (!email) {
-        toast.error('Please enter your email');
-        return;
-      }
-      if (!/^\S+@\S+\.\S+$/.test(email)) {
-        toast.error('Please enter a valid email');
-        return;
-      }
-    } else {
-      if (!phone) {
-        toast.error('Please enter your phone number');
-        return;
-      }
-      if (!/^\d{10}$/.test(phone)) {
-        toast.error('Please enter a valid 10-digit phone number');
-        return;
-      }
+  // ── On mount: check if this is the redirect back from the email link ──
+  useEffect(() => {
+    if (!isSignInWithEmailLink(auth, window.location.href)) return;
+
+    setVerifying(true);
+
+    // Retrieve the email we saved before sending the link
+    let savedEmail = localStorage.getItem('emailForSignIn');
+    if (!savedEmail) {
+      // Edge case: user opened link on a different device/browser
+      savedEmail = window.prompt('Please enter the email you used to login:');
     }
+    if (!savedEmail) { setVerifying(false); return; }
+
+    setLoading(true);
+    signInWithEmailLink(auth, savedEmail, window.location.href)
+      .then(() => {
+        // App.js onAuthStateChanged will fire and set the user automatically
+        localStorage.removeItem('emailForSignIn');
+        // Clean the long Firebase URL from the address bar
+        window.history.replaceState({}, document.title, '/login');
+        toast.success('Login successful! Welcome to Besties Craft ✦');
+        navigate('/');
+      })
+      .catch((err) => {
+        console.error(err);
+        toast.error('Login link is invalid or expired. Please request a new one.');
+        setVerifying(false);
+      })
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line
+
+  const sendLoginLink = async () => {
+    if (!email.trim()) { toast.error('Please enter your email address'); return; }
+    if (!/^\S+@\S+\.\S+$/.test(email)) { toast.error('Please enter a valid email address'); return; }
 
     setLoading(true);
     try {
-      const payload = loginType === 'email' ? { email } : { phone };
-      await axios.post(`${API}/auth/send-otp`, payload);
-      setOtpSent(true);
-      toast.success(`OTP sent to your ${loginType}!`);
-    } catch (error) {
-      toast.error('Failed to send OTP. Please try again.');
+      await sendSignInLinkToEmail(auth, email, ACTION_CODE_SETTINGS);
+      localStorage.setItem('emailForSignIn', email); // save so we can complete sign-in on return
+      setLinkSent(true);
+      toast.success('Login link sent! Check your inbox.');
+    } catch (err) {
+      console.error(err);
+      if (err.code === 'auth/operation-not-allowed') {
+        toast.error('Email link sign-in not enabled. Enable it in Firebase Console → Authentication → Sign-in method → Email/Password → also enable "Email link".');
+      } else {
+        toast.error('Failed to send login link. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const verifyOTP = async () => {
-    if (otp.length !== 6) {
-      toast.error('Please enter a valid 6-digit OTP');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const payload = loginType === 'email' 
-        ? { email, otp }
-        : { phone, otp };
-      
-      const response = await axios.post(`${API}/auth/verify-otp`, payload);
-      const { token, user: userData } = response.data;
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
-      toast.success('Login successful!');
-      navigate('/');
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Invalid OTP. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ── Shown while auto-completing the link on return ──
+  if (verifying) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center">
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✉️</div>
+            <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-3">Verifying your login…</h2>
+            <p className="text-stone-500 text-sm">Please wait a moment.</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -107,200 +121,95 @@ const LoginPage = () => {
             Access your profile, view orders, and manage your account
           </p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-stone-100 mb-8"
-          >
-            <p className="text-stone-600 mb-8">We'll send you an OTP to verify your identity</p>
+          {/* ── Main card ── */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+            className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-stone-100 mb-8">
 
-            {/* Toggle Buttons for Email/Phone Selection */}
-            <div className="flex gap-4 mb-8">
-              <button
-                onClick={() => {
-                  setLoginType('email');
-                  setEmail('');
-                  setPhone('');
-                  setOtp('');
-                  setOtpSent(false);
-                }}
-                className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
-                  loginType === 'email'
-                    ? 'bg-amber-600 text-white shadow-md'
-                    : 'bg-stone-200 text-stone-700 hover:bg-stone-300'
-                }`}
-              >
-                📧 Email
-              </button>
-              <button
-                onClick={() => {
-                  setLoginType('phone');
-                  setEmail('');
-                  setPhone('');
-                  setOtp('');
-                  setOtpSent(false);
-                }}
-                className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
-                  loginType === 'phone'
-                    ? 'bg-amber-600 text-white shadow-md'
-                    : 'bg-stone-200 text-stone-700 hover:bg-stone-300'
-                }`}
-              >
-                📱 Phone
-              </button>
-            </div>
+            {!linkSent ? (
+              <>
+                <div className="flex items-center gap-3 mb-2">
+                  <span style={{ fontSize: '1.5rem' }}>✉️</span>
+                  <h2 className="text-xl font-serif font-semibold text-stone-900">Login with Email</h2>
+                </div>
+                <p className="text-stone-500 text-sm mb-8">
+                  We'll send a secure one-click login link to your email — no password needed.
+                </p>
 
-            {!otpSent ? (
-              <div className="space-y-6">
-                {/* Email Input - Show only when Email is selected */}
-                {loginType === 'email' && (
+                <div className="space-y-5">
                   <div>
-                    <Label htmlFor="email" className="text-stone-700 font-medium mb-2">Email Address</Label>
-                    <div className="relative">
+                    <Label htmlFor="email" className="text-stone-700 font-medium mb-2 block">Email Address</Label>
+                    <div className="relative mt-1.5">
                       <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 w-5 h-5" />
                       <Input
                         id="email"
                         type="email"
                         placeholder="your@email.com"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={e => setEmail(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && sendLoginLink()}
                         className="pl-12 py-6 text-lg"
                         data-testid="login-email-input"
                       />
                     </div>
                   </div>
-                )}
 
-                {/* Phone Input - Show only when Phone is selected */}
-                {loginType === 'phone' && (
-                  <div>
-                    <Label htmlFor="phone" className="text-stone-700 font-medium mb-2">Phone Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 w-5 h-5" />
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="10-digit phone number"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        maxLength={10}
-                        className="pl-12 py-6 text-lg"
-                        data-testid="login-phone-input"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <Button
-                  onClick={sendOTP}
-                  disabled={loading}
-                  className="btn-primary w-full py-6 text-lg"
-                  data-testid="login-send-otp-button"
-                >
-                  {loading ? 'Sending...' : 'Send OTP'}
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div>
-                  <Label className="text-stone-700 font-medium mb-4 block">Enter 6-digit OTP</Label>
-                  <p className="text-stone-600 text-sm mb-4">OTP sent to your {loginType}</p>
-                  <div className="flex justify-center">
-                    <InputOTP maxLength={6} value={otp} onChange={setOtp} data-testid="login-otp-input">
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} className="w-14 h-14 text-xl" />
-                        <InputOTPSlot index={1} className="w-14 h-14 text-xl" />
-                        <InputOTPSlot index={2} className="w-14 h-14 text-xl" />
-                        <InputOTPSlot index={3} className="w-14 h-14 text-xl" />
-                        <InputOTPSlot index={4} className="w-14 h-14 text-xl" />
-                        <InputOTPSlot index={5} className="w-14 h-14 text-xl" />
-                      </InputOTPGroup>
-                    </InputOTP>
-                  </div>
+                  <Button
+                    onClick={sendLoginLink}
+                    disabled={loading}
+                    className="btn-primary w-full py-6 text-lg"
+                    data-testid="login-send-otp-button"
+                  >
+                    {loading ? 'Sending…' : 'Send Login Link'}
+                  </Button>
                 </div>
-
-                <Button
-                  onClick={verifyOTP}
-                  disabled={loading || otp.length !== 6}
-                  className="btn-primary w-full py-6 text-lg"
-                  data-testid="login-verify-otp-button"
-                >
-                  {loading ? 'Verifying...' : 'Verify OTP & Login'}
-                </Button>
-
+              </>
+            ) : (
+              /* ── Link sent state ── */
+              <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-4">
+                <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>📬</div>
+                <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-3">Check your inbox!</h2>
+                <p className="text-stone-600 mb-2">We sent a login link to:</p>
+                <p className="text-amber-700 font-semibold text-lg mb-6">{email}</p>
+                <p className="text-stone-500 text-sm mb-8 leading-relaxed">
+                  Click the link in the email to log in instantly.<br />
+                  It expires in 10 minutes. Check your spam folder too.
+                </p>
                 <button
-                  onClick={() => {
-                    setOtpSent(false);
-                    setOtp('');
-                  }}
-                  className="w-full text-center text-stone-600 hover:text-stone-900 transition-colors"
-                  data-testid="login-change-details-button"
+                  onClick={() => { setLinkSent(false); setEmail(''); }}
+                  className="text-stone-500 hover:text-stone-800 text-sm underline transition-colors"
                 >
-                  Change Email/Phone
+                  Use a different email
                 </button>
-              </div>
+              </motion.div>
             )}
           </motion.div>
 
-          {/* Additional Info Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"
-          >
+          {/* ── Info cards ── */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div className="bg-amber-50 rounded-2xl p-6 border border-amber-200">
               <h3 className="text-lg font-semibold text-stone-900 mb-3">Why Login?</h3>
               <ul className="space-y-2 text-stone-700 text-sm">
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-600 font-bold">✓</span>
-                  <span>View your order history</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-600 font-bold">✓</span>
-                  <span>Track your shipments</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-600 font-bold">✓</span>
-                  <span>Faster checkout experience</span>
-                </li>
+                <li className="flex items-start gap-2"><span className="text-amber-600 font-bold">✓</span><span>View your order history</span></li>
+                <li className="flex items-start gap-2"><span className="text-amber-600 font-bold">✓</span><span>Track your shipments</span></li>
+                <li className="flex items-start gap-2"><span className="text-amber-600 font-bold">✓</span><span>Faster checkout experience</span></li>
               </ul>
             </div>
-
             <div className="bg-stone-50 rounded-2xl p-6 border border-stone-200">
               <h3 className="text-lg font-semibold text-stone-900 mb-3">Security</h3>
               <ul className="space-y-2 text-stone-700 text-sm">
-                <li className="flex items-start gap-2">
-                  <Lock className="w-5 h-5 text-stone-600 flex-shrink-0 mt-0.5" />
-                  <span>OTP verification via email or phone</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Lock className="w-5 h-5 text-stone-600 flex-shrink-0 mt-0.5" />
-                  <span>End-to-end encrypted connection</span>
-                </li>
+                <li className="flex items-start gap-2"><Lock className="w-5 h-5 text-stone-600 flex-shrink-0 mt-0.5" /><span>Secure one-click link — no password needed</span></li>
+                <li className="flex items-start gap-2"><Lock className="w-5 h-5 text-stone-600 flex-shrink-0 mt-0.5" /><span>Powered by Google Firebase</span></li>
               </ul>
             </div>
           </motion.div>
 
-          {/* Checkout Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="bg-gradient-to-r from-amber-50 to-stone-50 rounded-2xl p-8 border border-amber-200"
-          >
-            <h3 className="text-2xl font-serif font-semibold text-stone-900 mb-4">
-              Ready to Shop?
-            </h3>
-            <p className="text-stone-700 mb-6">
-              Proceed to checkout to browse our handmade collection and place your order.
-            </p>
-            <Button
-              onClick={() => navigate('/checkout')}
-              className="btn-primary px-8 py-6 text-lg"
-              data-testid="login-go-to-checkout-button"
-            >
+          {/* ── CTA ── */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}
+            className="bg-gradient-to-r from-amber-50 to-stone-50 rounded-2xl p-8 border border-amber-200">
+            <h3 className="text-2xl font-serif font-semibold text-stone-900 mb-4">Ready to Shop?</h3>
+            <p className="text-stone-700 mb-6">Browse our handmade collection and place your order.</p>
+            <Button onClick={() => navigate('/checkout')} className="btn-primary px-8 py-6 text-lg" data-testid="login-go-to-checkout-button">
               Go to Checkout & Shop
             </Button>
           </motion.div>

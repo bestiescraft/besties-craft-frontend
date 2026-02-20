@@ -1,210 +1,181 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Phone, Lock, MapPin, User } from 'lucide-react';
+import { Mail, Lock, MapPin, User, Phone } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { useApp } from '@/App';
+import { auth } from '@/firebase';
+import {
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+} from 'firebase/auth';
 import axios from 'axios';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+const PLACEHOLDER_IMG = 'https://placehold.co/64x64/e8e0d5/a09080?text=Item';
+
+// ── Safe image helper: handles item.image OR item.image_url, falls back to placeholder ──
+const getItemImage = (item) => {
+  const url = item.image || item.image_url || '';
+  if (!url) return PLACEHOLDER_IMG;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${BACKEND_URL}${url}`;
+};
+
+const ACTION_CODE_SETTINGS = {
+  url:             window.location.origin + '/checkout',
+  handleCodeInApp: true,
+};
+
 const CheckoutPage = () => {
-  const navigate = useNavigate();
+  const navigate              = useNavigate();
   const { user, setUser, cart, setCart } = useApp();
-  const [step, setStep] = useState(user ? 'shipping' : 'login');
-  const [loginType, setLoginType] = useState('email'); // Toggle between 'email' or 'phone'
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
+
+  const [step,              setStep]              = useState(user ? 'shipping' : 'login');
+  const [email,             setEmail]             = useState('');
+  const [linkSent,          setLinkSent]          = useState(false);
+  const [loading,           setLoading]           = useState(false);
+  const [verifying,         setVerifying]         = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
 
-  // Shipping Details State
   const [shippingDetails, setShippingDetails] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    country: 'India'
+    fullName: '', email: '', phone: '',
+    address: '', city: '', state: '',
+    postalCode: '', country: 'India',
   });
-
   const [shippingErrors, setShippingErrors] = useState({});
 
-  const sendOTP = async () => {
-    if (loginType === 'email') {
-      if (!email) {
-        toast.error('Please enter your email');
-        return;
-      }
-      if (!/^\S+@\S+\.\S+$/.test(email)) {
-        toast.error('Please enter a valid email');
-        return;
-      }
-    } else {
-      if (!phone) {
-        toast.error('Please enter your phone number');
-        return;
-      }
-      if (!/^\d{10}$/.test(phone)) {
-        toast.error('Please enter a valid 10-digit phone number');
-        return;
-      }
+  // ── When Firebase user session is restored by App.js, skip login step ──
+  useEffect(() => {
+    if (user && step === 'login') setStep('shipping');
+  }, [user]); // eslint-disable-line
+
+  // ── Handle return from Firebase email link (user clicked link in email) ──
+  useEffect(() => {
+    if (!isSignInWithEmailLink(auth, window.location.href)) return;
+
+    setVerifying(true);
+    let savedEmail = localStorage.getItem('emailForSignIn');
+    if (!savedEmail) {
+      savedEmail = window.prompt('Please enter the email you used to login:');
     }
+    if (!savedEmail) { setVerifying(false); return; }
+
+    setLoading(true);
+    signInWithEmailLink(auth, savedEmail, window.location.href)
+      .then(async (result) => {
+        localStorage.removeItem('emailForSignIn');
+        window.history.replaceState({}, document.title, '/checkout');
+
+        const firebaseUser = result.user;
+        const token        = await firebaseUser.getIdToken();
+        const userData     = {
+          id:    firebaseUser.uid,
+          email: firebaseUser.email,
+          name:  firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Customer',
+        };
+        localStorage.setItem('token', token);
+        localStorage.setItem('user',  JSON.stringify(userData));
+        setUser(userData);
+
+        toast.success('Login successful! Now fill in your shipping details.');
+        setStep('shipping');
+      })
+      .catch((err) => {
+        console.error(err);
+        toast.error('Login link is invalid or expired. Please request a new one.');
+      })
+      .finally(() => { setLoading(false); setVerifying(false); });
+  }, []); // eslint-disable-line
+
+  const sendLoginLink = async () => {
+    if (!email.trim()) { toast.error('Please enter your email address'); return; }
+    if (!/^\S+@\S+\.\S+$/.test(email)) { toast.error('Please enter a valid email address'); return; }
 
     setLoading(true);
     try {
-      const payload = loginType === 'email' ? { email } : { phone };
-      await axios.post(`${API}/auth/send-otp`, payload);
-      setOtpSent(true);
-      toast.success(`OTP sent to your ${loginType}!`);
-    } catch (error) {
-      toast.error('Failed to send OTP. Please try again.');
+      await sendSignInLinkToEmail(auth, email, ACTION_CODE_SETTINGS);
+      localStorage.setItem('emailForSignIn', email);
+      setLinkSent(true);
+      toast.success('Login link sent! Check your inbox.');
+    } catch (err) {
+      console.error(err);
+      if (err.code === 'auth/operation-not-allowed') {
+        toast.error('Email link sign-in not enabled. Enable "Email link" under Email/Password in Firebase Console → Authentication → Sign-in method.');
+      } else {
+        toast.error('Failed to send login link. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const verifyOTP = async () => {
-    if (otp.length !== 6) {
-      toast.error('Please enter a valid 6-digit OTP');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const payload = loginType === 'email' 
-        ? { email, otp }
-        : { phone, otp };
-      
-      const response = await axios.post(`${API}/auth/verify-otp`, payload);
-      const { token, user: userData } = response.data;
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
-      toast.success('Login successful!');
-      setStep('shipping');
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Invalid OTP. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const validateShippingDetails = () => {
+  const validateShipping = () => {
     const errors = {};
-
-    if (!shippingDetails.fullName.trim()) {
-      errors.fullName = 'Full name is required';
-    }
-
-    if (!shippingDetails.email.trim()) {
-      errors.email = 'Email is required';
-    } else if (!/^\S+@\S+\.\S+$/.test(shippingDetails.email)) {
-      errors.email = 'Please enter a valid email';
-    }
-
-    if (!shippingDetails.phone.trim()) {
-      errors.phone = 'Phone number is required';
-    } else if (!/^\d{10}$/.test(shippingDetails.phone)) {
-      errors.phone = 'Please enter a valid 10-digit phone number';
-    }
-
-    if (!shippingDetails.address.trim()) {
-      errors.address = 'Address is required';
-    }
-
-    if (!shippingDetails.city.trim()) {
-      errors.city = 'City is required';
-    }
-
-    if (!shippingDetails.state.trim()) {
-      errors.state = 'State is required';
-    }
-
-    if (!shippingDetails.postalCode.trim()) {
-      errors.postalCode = 'Postal code is required';
-    } else if (!/^\d{6}$/.test(shippingDetails.postalCode)) {
-      errors.postalCode = 'Please enter a valid 6-digit postal code';
-    }
-
+    if (!shippingDetails.fullName.trim())                                        errors.fullName   = 'Full name is required';
+    if (!shippingDetails.email.trim())                                           errors.email      = 'Email is required';
+    else if (!/^\S+@\S+\.\S+$/.test(shippingDetails.email))                     errors.email      = 'Please enter a valid email';
+    if (!shippingDetails.phone.trim())                                           errors.phone      = 'Phone number is required';
+    else if (!/^\d{10}$/.test(shippingDetails.phone))                            errors.phone      = 'Please enter a valid 10-digit phone number';
+    if (!shippingDetails.address.trim())                                         errors.address    = 'Address is required';
+    if (!shippingDetails.city.trim())                                            errors.city       = 'City is required';
+    if (!shippingDetails.state.trim())                                           errors.state      = 'State is required';
+    if (!shippingDetails.postalCode.trim())                                      errors.postalCode = 'Postal code is required';
+    else if (!/^\d{6}$/.test(shippingDetails.postalCode))                        errors.postalCode = 'Please enter a valid 6-digit postal code';
     setShippingErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleShippingChange = (field, value) => {
-    setShippingDetails(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    // Clear error for this field when user starts typing
-    if (shippingErrors[field]) {
-      setShippingErrors(prev => ({
-        ...prev,
-        [field]: ''
-      }));
-    }
+    setShippingDetails(prev => ({ ...prev, [field]: value }));
+    if (shippingErrors[field]) setShippingErrors(prev => ({ ...prev, [field]: '' }));
   };
 
   const handleContinueToPayment = () => {
-    if (validateShippingDetails()) {
-      setStep('payment');
-      toast.success('Shipping details saved!');
-    } else {
-      toast.error('Please fill in all required fields correctly');
-    }
+    if (validateShipping()) { setStep('payment'); toast.success('Shipping details saved!'); }
+    else toast.error('Please fill in all required fields correctly');
   };
 
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
+  const loadRazorpayScript = () => new Promise((resolve) => {
+    if (window.Razorpay) { resolve(true); return; }
+    const s = document.createElement('script');
+    s.src     = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.onload  = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
 
   const handlePayment = async () => {
-    if (cart.length === 0) {
-      toast.error('Your cart is empty');
-      return;
-    }
-
+    if (cart.length === 0) { toast.error('Your cart is empty'); return; }
     setProcessingPayment(true);
-
     try {
-      const token = localStorage.getItem('token');
-      const orderItems = cart.map(item => ({
-        product_id: item.product_id,
-        product_name: item.product_name,
-        quantity: item.quantity,
-        price: item.price
-      }));
-      const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const token      = localStorage.getItem('token');
+      const totalAmount = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
       const orderResponse = await axios.post(
         `${API}/orders/create`,
         {
-          user_id: user.id,
-          items: orderItems,
-          total_amount: totalAmount,
-          shipping_details: shippingDetails
+          user_id:          user.id,
+          items:            cart.map(i => ({
+            product_id:   i.product_id,
+            product_name: i.product_name,
+            quantity:     i.quantity,
+            price:        i.price,
+            color:        i.color        || null,
+            customisation: i.customisation || null,
+          })),
+          total_amount:     totalAmount,
+          shipping_details: shippingDetails,
         },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       const { order, razorpay_order } = orderResponse.data;
@@ -216,61 +187,59 @@ const CheckoutPage = () => {
       }
 
       const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        toast.error('Failed to load payment gateway');
-        setProcessingPayment(false);
-        return;
-      }
+      if (!scriptLoaded) { toast.error('Failed to load payment gateway'); setProcessingPayment(false); return; }
 
       const options = {
-        key: process.env.REACT_APP_RAZORPAY_KEY_ID || '',
-        amount: razorpay_order.amount,
-        currency: 'INR',
-        name: 'Besties Craft',
-        description: 'Handmade Woollen Crochet Products',
-        order_id: razorpay_order.id,
+        key:         process.env.REACT_APP_RAZORPAY_KEY_ID || '',
+        amount:      razorpay_order.amount,
+        currency:    'INR',
+        name:        'Besties Craft',
+        description: 'Handmade Products',
+        order_id:    razorpay_order.id,
         handler: async (response) => {
           try {
             await axios.post(`${API}/orders/verify-payment`, {
-              razorpay_order_id: response.razorpay_order_id,
+              razorpay_order_id:   response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              order_id: order.id
+              razorpay_signature:  response.razorpay_signature,
+              order_id:            order.id,
             });
-
             setCart([]);
-            toast.success('Payment successful!');
+            toast.success('Payment successful! 🎉');
             navigate(`/order-confirmation/${order.id}`);
-          } catch (error) {
-            toast.error('Payment verification failed');
-          } finally {
-            setProcessingPayment(false);
-          }
+          } catch { toast.error('Payment verification failed'); }
+          finally  { setProcessingPayment(false); }
         },
-        prefill: {
-          name: shippingDetails.fullName,
-          email: shippingDetails.email,
-          contact: shippingDetails.phone
-        },
-        theme: {
-          color: '#D97706'
-        },
-        modal: {
-          ondismiss: () => {
-            setProcessingPayment(false);
-          }
-        }
+        prefill: { name: shippingDetails.fullName, email: shippingDetails.email, contact: shippingDetails.phone },
+        theme:   { color: '#D97706' },
+        modal:   { ondismiss: () => setProcessingPayment(false) },
       };
 
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
-    } catch (error) {
-      toast.error('Failed to process payment');
+      new window.Razorpay(options).open();
+    } catch {
+      toast.error('Failed to process payment. Please try again.');
       setProcessingPayment(false);
     }
   };
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+
+  // ── Verifying state (after clicking email link) ──
+  if (verifying) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center">
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✉️</div>
+            <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-3">Verifying your login…</h2>
+            <p className="text-stone-500 text-sm">Please wait a moment.</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -282,157 +251,67 @@ const CheckoutPage = () => {
             Checkout
           </h1>
 
+          {/* ════════ STEP: LOGIN ════════ */}
           {step === 'login' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-stone-100"
-            >
-              <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-6" data-testid="login-section-title">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+              className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-stone-100">
+
+              <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-2" data-testid="login-section-title">
                 Login to Continue
               </h2>
-              <p className="text-stone-600 mb-8">We'll send you an OTP to verify your identity</p>
 
-              {/* Toggle Buttons for Email/Phone Selection */}
-              <div className="flex gap-4 mb-8">
-                <button
-                  onClick={() => {
-                    setLoginType('email');
-                    setEmail('');
-                    setPhone('');
-                    setOtp('');
-                    setOtpSent(false);
-                  }}
-                  className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
-                    loginType === 'email'
-                      ? 'bg-amber-600 text-white shadow-md'
-                      : 'bg-stone-200 text-stone-700 hover:bg-stone-300'
-                  }`}
-                >
-                  📧 Email
-                </button>
-                <button
-                  onClick={() => {
-                    setLoginType('phone');
-                    setEmail('');
-                    setPhone('');
-                    setOtp('');
-                    setOtpSent(false);
-                  }}
-                  className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
-                    loginType === 'phone'
-                      ? 'bg-amber-600 text-white shadow-md'
-                      : 'bg-stone-200 text-stone-700 hover:bg-stone-300'
-                  }`}
-                >
-                  📱 Phone
-                </button>
-              </div>
-
-              {!otpSent ? (
-                <div className="space-y-6">
-                  {/* Email Input - Show only when Email is selected */}
-                  {loginType === 'email' && (
+              {!linkSent ? (
+                <>
+                  <p className="text-stone-500 text-sm mb-8">
+                    We'll send a secure one-click login link to your email — no password needed.
+                  </p>
+                  <div className="space-y-5">
                     <div>
-                      <Label htmlFor="email" className="text-stone-700 font-medium mb-2">Email Address</Label>
-                      <div className="relative">
+                      <Label htmlFor="checkout-email" className="text-stone-700 font-medium mb-2 block">Email Address</Label>
+                      <div className="relative mt-1.5">
                         <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 w-5 h-5" />
                         <Input
-                          id="email"
+                          id="checkout-email"
                           type="email"
                           placeholder="your@email.com"
                           value={email}
-                          onChange={(e) => setEmail(e.target.value)}
+                          onChange={e => setEmail(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && sendLoginLink()}
                           className="pl-12 py-6 text-lg"
                           data-testid="email-input"
                         />
                       </div>
                     </div>
-                  )}
-
-                  {/* Phone Input - Show only when Phone is selected */}
-                  {loginType === 'phone' && (
-                    <div>
-                      <Label htmlFor="phone" className="text-stone-700 font-medium mb-2">Phone Number</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 w-5 h-5" />
-                        <Input
-                          id="phone"
-                          type="tel"
-                          placeholder="10-digit phone number"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          maxLength={10}
-                          className="pl-12 py-6 text-lg"
-                          data-testid="phone-input"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={sendOTP}
-                    disabled={loading}
-                    className="btn-primary w-full py-6 text-lg"
-                    data-testid="send-otp-button"
-                  >
-                    {loading ? 'Sending...' : 'Send OTP'}
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div>
-                    <Label className="text-stone-700 font-medium mb-4 block">Enter 6-digit OTP</Label>
-                    <p className="text-stone-600 text-sm mb-4">OTP sent to your {loginType}</p>
-                    <div className="flex justify-center">
-                      <InputOTP maxLength={6} value={otp} onChange={setOtp} data-testid="otp-input">
-                        <InputOTPGroup>
-                          <InputOTPSlot index={0} className="w-14 h-14 text-xl" />
-                          <InputOTPSlot index={1} className="w-14 h-14 text-xl" />
-                          <InputOTPSlot index={2} className="w-14 h-14 text-xl" />
-                          <InputOTPSlot index={3} className="w-14 h-14 text-xl" />
-                          <InputOTPSlot index={4} className="w-14 h-14 text-xl" />
-                          <InputOTPSlot index={5} className="w-14 h-14 text-xl" />
-                        </InputOTPGroup>
-                      </InputOTP>
-                    </div>
+                    <Button onClick={sendLoginLink} disabled={loading} className="btn-primary w-full py-6 text-lg" data-testid="send-otp-button">
+                      {loading ? 'Sending…' : 'Send Login Link'}
+                    </Button>
                   </div>
-
-                  <Button
-                    onClick={verifyOTP}
-                    disabled={loading || otp.length !== 6}
-                    className="btn-primary w-full py-6 text-lg"
-                    data-testid="verify-otp-button"
-                  >
-                    {loading ? 'Verifying...' : 'Verify OTP'}
-                  </Button>
-
-                  <button
-                    onClick={() => {
-                      setOtpSent(false);
-                      setOtp('');
-                    }}
-                    className="w-full text-center text-stone-600 hover:text-stone-900 transition-colors"
-                    data-testid="change-details-button"
-                  >
-                    Change Email/Phone
+                </>
+              ) : (
+                <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-6">
+                  <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>📬</div>
+                  <h3 className="text-xl font-serif font-semibold text-stone-900 mb-3">Check your inbox!</h3>
+                  <p className="text-stone-600 mb-2">We sent a login link to:</p>
+                  <p className="text-amber-700 font-semibold text-lg mb-6">{email}</p>
+                  <p className="text-stone-500 text-sm mb-8 leading-relaxed">
+                    Click the link in the email to continue checkout.<br />
+                    It expires in 10 minutes. Check your spam folder too.
+                  </p>
+                  <button onClick={() => { setLinkSent(false); setEmail(''); }}
+                    className="text-stone-500 hover:text-stone-800 text-sm underline transition-colors">
+                    Use a different email
                   </button>
-                </div>
+                </motion.div>
               )}
             </motion.div>
           )}
 
+          {/* ════════ STEP: SHIPPING ════════ */}
           {step === 'shipping' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-stone-100"
-            >
-              <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-2" data-testid="shipping-section-title">
-                Shipping Address
-              </h2>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+              className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-stone-100">
+
+              <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-2" data-testid="shipping-section-title">Shipping Address</h2>
               <p className="text-stone-600 mb-8">Please enter your delivery address</p>
 
               <div className="space-y-6">
@@ -441,15 +320,9 @@ const CheckoutPage = () => {
                   <Label htmlFor="fullName" className="text-stone-700 font-medium mb-2">Full Name *</Label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 w-5 h-5" />
-                    <Input
-                      id="fullName"
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={shippingDetails.fullName}
-                      onChange={(e) => handleShippingChange('fullName', e.target.value)}
-                      className="pl-12 py-6 text-lg"
-                      data-testid="full-name-input"
-                    />
+                    <Input id="fullName" type="text" placeholder="Enter your full name"
+                      value={shippingDetails.fullName} onChange={e => handleShippingChange('fullName', e.target.value)}
+                      className="pl-12 py-6 text-lg" data-testid="full-name-input" />
                   </div>
                   {shippingErrors.fullName && <p className="text-red-600 text-sm mt-2">{shippingErrors.fullName}</p>}
                 </div>
@@ -459,15 +332,9 @@ const CheckoutPage = () => {
                   <Label htmlFor="shippingEmail" className="text-stone-700 font-medium mb-2">Email Address *</Label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 w-5 h-5" />
-                    <Input
-                      id="shippingEmail"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={shippingDetails.email}
-                      onChange={(e) => handleShippingChange('email', e.target.value)}
-                      className="pl-12 py-6 text-lg"
-                      data-testid="shipping-email-input"
-                    />
+                    <Input id="shippingEmail" type="email" placeholder="your@email.com"
+                      value={shippingDetails.email} onChange={e => handleShippingChange('email', e.target.value)}
+                      className="pl-12 py-6 text-lg" data-testid="shipping-email-input" />
                   </div>
                   {shippingErrors.email && <p className="text-red-600 text-sm mt-2">{shippingErrors.email}</p>}
                 </div>
@@ -477,16 +344,9 @@ const CheckoutPage = () => {
                   <Label htmlFor="shippingPhone" className="text-stone-700 font-medium mb-2">Phone Number *</Label>
                   <div className="relative">
                     <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 w-5 h-5" />
-                    <Input
-                      id="shippingPhone"
-                      type="tel"
-                      placeholder="10-digit phone number"
-                      value={shippingDetails.phone}
-                      onChange={(e) => handleShippingChange('phone', e.target.value)}
-                      maxLength={10}
-                      className="pl-12 py-6 text-lg"
-                      data-testid="shipping-phone-input"
-                    />
+                    <Input id="shippingPhone" type="tel" placeholder="10-digit phone number"
+                      value={shippingDetails.phone} onChange={e => handleShippingChange('phone', e.target.value)}
+                      maxLength={10} className="pl-12 py-6 text-lg" data-testid="shipping-phone-input" />
                   </div>
                   {shippingErrors.phone && <p className="text-red-600 text-sm mt-2">{shippingErrors.phone}</p>}
                 </div>
@@ -495,16 +355,10 @@ const CheckoutPage = () => {
                 <div>
                   <Label htmlFor="address" className="text-stone-700 font-medium mb-2">Street Address *</Label>
                   <div className="relative">
-                    <MapPin className="absolute left-4 top-6 text-stone-400 w-5 h-5" />
-                    <Input
-                      id="address"
-                      type="text"
-                      placeholder="Enter your street address"
-                      value={shippingDetails.address}
-                      onChange={(e) => handleShippingChange('address', e.target.value)}
-                      className="pl-12 py-6 text-lg"
-                      data-testid="address-input"
-                    />
+                    <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 w-5 h-5" />
+                    <Input id="address" type="text" placeholder="Enter your street address"
+                      value={shippingDetails.address} onChange={e => handleShippingChange('address', e.target.value)}
+                      className="pl-12 py-6 text-lg" data-testid="address-input" />
                   </div>
                   {shippingErrors.address && <p className="text-red-600 text-sm mt-2">{shippingErrors.address}</p>}
                 </div>
@@ -512,166 +366,132 @@ const CheckoutPage = () => {
                 {/* City */}
                 <div>
                   <Label htmlFor="city" className="text-stone-700 font-medium mb-2">City *</Label>
-                  <Input
-                    id="city"
-                    type="text"
-                    placeholder="Enter your city"
-                    value={shippingDetails.city}
-                    onChange={(e) => handleShippingChange('city', e.target.value)}
-                    className="py-6 text-lg"
-                    data-testid="city-input"
-                  />
+                  <Input id="city" type="text" placeholder="Enter your city"
+                    value={shippingDetails.city} onChange={e => handleShippingChange('city', e.target.value)}
+                    className="py-6 text-lg" data-testid="city-input" />
                   {shippingErrors.city && <p className="text-red-600 text-sm mt-2">{shippingErrors.city}</p>}
                 </div>
 
                 {/* State */}
                 <div>
                   <Label htmlFor="state" className="text-stone-700 font-medium mb-2">State *</Label>
-                  <Input
-                    id="state"
-                    type="text"
-                    placeholder="Enter your state"
-                    value={shippingDetails.state}
-                    onChange={(e) => handleShippingChange('state', e.target.value)}
-                    className="py-6 text-lg"
-                    data-testid="state-input"
-                  />
+                  <Input id="state" type="text" placeholder="Enter your state"
+                    value={shippingDetails.state} onChange={e => handleShippingChange('state', e.target.value)}
+                    className="py-6 text-lg" data-testid="state-input" />
                   {shippingErrors.state && <p className="text-red-600 text-sm mt-2">{shippingErrors.state}</p>}
                 </div>
 
                 {/* Postal Code */}
                 <div>
                   <Label htmlFor="postalCode" className="text-stone-700 font-medium mb-2">Postal Code (6-digit) *</Label>
-                  <Input
-                    id="postalCode"
-                    type="tel"
-                    placeholder="Enter 6-digit postal code"
-                    value={shippingDetails.postalCode}
-                    onChange={(e) => handleShippingChange('postalCode', e.target.value)}
-                    maxLength={6}
-                    className="py-6 text-lg"
-                    data-testid="postal-code-input"
-                  />
+                  <Input id="postalCode" type="tel" placeholder="Enter 6-digit postal code"
+                    value={shippingDetails.postalCode} onChange={e => handleShippingChange('postalCode', e.target.value)}
+                    maxLength={6} className="py-6 text-lg" data-testid="postal-code-input" />
                   {shippingErrors.postalCode && <p className="text-red-600 text-sm mt-2">{shippingErrors.postalCode}</p>}
                 </div>
 
                 {/* Country */}
                 <div>
                   <Label htmlFor="country" className="text-stone-700 font-medium mb-2">Country</Label>
-                  <Input
-                    id="country"
-                    type="text"
-                    value={shippingDetails.country}
-                    disabled
-                    className="py-6 text-lg bg-stone-100 cursor-not-allowed"
-                    data-testid="country-input"
-                  />
+                  <Input id="country" type="text" value="India" disabled className="py-6 text-lg bg-stone-100 cursor-not-allowed" data-testid="country-input" />
                 </div>
 
-                <Button
-                  onClick={handleContinueToPayment}
-                  className="btn-primary w-full py-6 text-lg"
-                  data-testid="continue-to-payment-button"
-                >
+                <Button onClick={handleContinueToPayment} className="btn-primary w-full py-6 text-lg" data-testid="continue-to-payment-button">
                   Continue to Payment
                 </Button>
-
-                <button
-                  onClick={() => setStep('login')}
-                  className="w-full text-center text-stone-600 hover:text-stone-900 transition-colors"
-                  data-testid="back-to-login-button"
-                >
-                  Back to Login
-                </button>
               </div>
             </motion.div>
           )}
 
+          {/* ════════ STEP: PAYMENT ════════ */}
           {step === 'payment' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
-                className="space-y-6"
-              >
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }} className="space-y-6">
+
+                {/* Order items */}
                 <div className="bg-white rounded-2xl p-8 shadow-lg border border-stone-100">
                   <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-6">Order Items</h2>
                   <div className="space-y-4" data-testid="checkout-items">
                     {cart.map((item, index) => (
-                      <div key={item.product_id} className="flex items-center gap-4 pb-4 border-b border-stone-100 last:border-0" data-testid={`checkout-item-${index}`}>
-                        <img src={item.image_url} alt={item.product_name} className="w-16 h-16 rounded-lg object-cover" />
-                        <div className="flex-1">
-                          <h3 className="font-medium text-stone-900">{item.product_name}</h3>
+                      <div key={`${item.product_id}-${index}`}
+                        className="flex items-center gap-4 pb-4 border-b border-stone-100 last:border-0"
+                        data-testid={`checkout-item-${index}`}>
+
+                        {/* ── IMAGE FIX: uses getItemImage() which handles item.image, item.image_url, relative URLs, and missing images ── */}
+                        <img
+                          src={getItemImage(item)}
+                          alt={item.product_name || 'Product'}
+                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0 bg-stone-100"
+                          onError={e => { e.target.src = PLACEHOLDER_IMG; }}
+                        />
+
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-stone-900 truncate">{item.product_name}</h3>
+                          {item.color && <p className="text-xs text-stone-500">Colour: {item.color}</p>}
+                          {item.customisation && (
+                            <p className="text-xs text-amber-700 mt-0.5 truncate">✎ {item.customisation}</p>
+                          )}
                           <p className="text-sm text-stone-600">Qty: {item.quantity}</p>
                         </div>
-                        <p className="font-semibold text-stone-900">₹{(item.price * item.quantity).toFixed(2)}</p>
+                        <p className="font-semibold text-stone-900 flex-shrink-0">₹{(item.price * item.quantity).toLocaleString('en-IN')}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
+                {/* Delivery address summary */}
                 <div className="bg-white rounded-2xl p-8 shadow-lg border border-stone-100">
                   <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-6">Delivery Address</h2>
-                  <div className="space-y-2 text-stone-700">
+                  <div className="space-y-1 text-stone-700">
                     <p className="font-semibold">{shippingDetails.fullName}</p>
                     <p>{shippingDetails.address}</p>
                     <p>{shippingDetails.city}, {shippingDetails.state} {shippingDetails.postalCode}</p>
                     <p>{shippingDetails.country}</p>
-                    <p className="text-sm pt-4">📧 {shippingDetails.email}</p>
+                    <p className="text-sm pt-3">📧 {shippingDetails.email}</p>
                     <p className="text-sm">📱 {shippingDetails.phone}</p>
                   </div>
-                  <button
-                    onClick={() => setStep('shipping')}
-                    className="mt-6 text-amber-600 hover:text-amber-700 font-semibold transition-colors"
-                    data-testid="edit-address-button"
-                  >
+                  <button onClick={() => setStep('shipping')}
+                    className="mt-6 text-amber-600 hover:text-amber-700 font-semibold transition-colors text-sm"
+                    data-testid="edit-address-button">
                     Edit Address
                   </button>
                 </div>
               </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
+              {/* Payment summary */}
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
                 <div className="bg-stone-100 rounded-2xl p-8 sticky top-24">
                   <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-6">Payment Summary</h2>
-                  
                   <div className="space-y-4 mb-6">
                     <div className="flex justify-between text-stone-600">
                       <span>Subtotal</span>
-                      <span data-testid="payment-subtotal">₹{subtotal.toFixed(2)}</span>
+                      <span data-testid="payment-subtotal">₹{subtotal.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between text-stone-600">
+                      <span>Shipping</span>
+                      <span className="text-green-700 font-semibold">Free</span>
                     </div>
                     <div className="border-t border-stone-300 pt-4">
                       <div className="flex justify-between text-stone-900 text-xl font-semibold">
                         <span>Total</span>
-                        <span data-testid="payment-total">₹{subtotal.toFixed(2)}</span>
+                        <span data-testid="payment-total">₹{subtotal.toLocaleString('en-IN')}</span>
                       </div>
                     </div>
                   </div>
 
-                  <Button
-                    onClick={handlePayment}
-                    disabled={processingPayment || cart.length === 0}
-                    className="btn-primary w-full py-6 text-lg"
-                    data-testid="pay-now-button"
-                  >
+                  <Button onClick={handlePayment} disabled={processingPayment || cart.length === 0}
+                    className="btn-primary w-full py-6 text-lg" data-testid="pay-now-button">
                     <Lock className="w-5 h-5 mr-2" />
-                    {processingPayment ? 'Processing...' : 'Pay Now'}
+                    {processingPayment ? 'Processing…' : 'Pay Now'}
                   </Button>
-
-                  <p className="text-center text-sm text-stone-600 mt-4">
-                    Secured by Razorpay
-                  </p>
+                  <p className="text-center text-sm text-stone-600 mt-4">Secured by Razorpay</p>
                 </div>
               </motion.div>
             </div>
           )}
+
         </div>
       </div>
-
       <Footer />
     </div>
   );
