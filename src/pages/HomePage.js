@@ -11,12 +11,12 @@ const BACKEND_URL =
   'https://besties-craft-backend-1.onrender.com';
 
 const CATEGORIES = [
-  { name: 'Bracelets',         emoji: '📿', value: 'bracelets',    desc: 'Handcrafted wrist wear' },
-  { name: 'Handmade Flowers',  emoji: '🌸', value: 'scarves',      desc: 'Delicate floral pieces' },
-  { name: 'Keychains',         emoji: '🔑', value: 'blankets',     desc: 'Cute & custom keychains' },
-  { name: 'Hair Accessories',  emoji: '🎀', value: 'bags',         desc: 'Clips, bands & more' },
-  { name: 'Gifting Items',     emoji: '🎁', value: 'wool',         desc: 'Perfect for every occasion' },
-  { name: 'Crafts',            emoji: '🎨', value: 'crafts',       desc: 'Unique handmade crafts' },
+  { name: 'Bracelets',         emoji: '📿', value: 'bracelets',         desc: 'Handcrafted wrist wear' },
+  { name: 'Handmade Flowers',  emoji: '🌸', value: 'handmade-flowers',  desc: 'Delicate floral pieces' },
+  { name: 'Keychains',         emoji: '🔑', value: 'keychains',         desc: 'Cute & custom keychains' },
+  { name: 'Hair Accessories',  emoji: '🎀', value: 'hair-accessories',  desc: 'Clips, bands & more' },
+  { name: 'Gifting Items',     emoji: '🎁', value: 'gifting-items',     desc: 'Perfect for every occasion' },
+  { name: 'Crafts',            emoji: '🎨', value: 'crafts',            desc: 'Unique handmade crafts' },
 ];
 
 const FEATURES = [
@@ -71,12 +71,19 @@ export default function HomePage() {
           max-width: 1180px; margin: 0 auto; width: 100%;
           display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; position: relative; z-index: 1;
         }
+
+        /* ── Hero tags row ── */
+        .hp-hero-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
         .hp-hero-tag {
-          display: inline-flex; align-items: center; gap: 0.5rem;
-          background: rgba(194,96,42,0.12); color: var(--terracotta);
-          font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em;
-          text-transform: uppercase; padding: 0.4rem 1rem; border-radius: 20px; margin-bottom: 1.5rem;
+          display: inline-flex; align-items: center; gap: 0.4rem;
+          font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+          text-transform: uppercase; padding: 0.35rem 0.85rem; border-radius: 20px;
+          font-family: 'Lato', sans-serif;
         }
+        .hp-tag-primary   { background: rgba(194,96,42,0.12); color: var(--terracotta); }
+        .hp-tag-secondary { background: rgba(44,24,16,0.07);  color: var(--brown); }
+        .hp-tag-tertiary  { background: rgba(92,61,46,0.08);  color: var(--text); }
+
         .hp-hero-title {
           font-family: 'Playfair Display', Georgia, serif;
           font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 700; color: var(--dark);
@@ -180,7 +187,14 @@ export default function HomePage() {
         <section className="hp-hero">
           <div className="hp-hero-inner">
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-              <div className="hp-hero-tag"><Sparkles size={13} /> Handcrafted in India</div>
+
+              {/* ── 3 tags row — fills the empty space ── */}
+              <div className="hp-hero-tags">
+                <span className="hp-hero-tag hp-tag-primary"><Sparkles size={12} /> Handcrafted in India</span>
+                <span className="hp-hero-tag hp-tag-secondary">🧶 Since 2025</span>
+                <span className="hp-hero-tag hp-tag-tertiary">✦ 100% Handmade</span>
+              </div>
+
               <h1 className="hp-hero-title">Crafted with hands,<br />gifted with <em>love</em></h1>
               <p className="hp-hero-sub">Discover our collection of handmade bracelets, flowers, keychains, hair accessories and more — each piece lovingly crafted by skilled artisans.</p>
               <div className="hp-hero-btns">
@@ -202,14 +216,14 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* STATS — "Easy Returns" removed, replaced with "Customisable" */}
+        {/* STATS */}
         <div className="hp-stats">
           <div className="hp-stats-inner">
             {[
-              { num: '500+',  label: 'Happy Customers' },
-              { num: '100%',  label: 'Handmade' },
-              { num: '50+',   label: 'Unique Designs' },
-              { num: '✦',     label: 'Customisable Orders' },
+              { num: '500+', label: 'Happy Customers' },
+              { num: '100%', label: 'Handmade' },
+              { num: '50+',  label: 'Unique Designs' },
+              { num: '✦',   label: 'Customisable Orders' },
             ].map((s, i) => (
               <motion.div key={i} className="hp-stat" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * i + 0.4 }}>
                 <span className="hp-stat-num">{s.num}</span>
