@@ -52,6 +52,9 @@ const CheckoutPage = () => {
   });
   const [shippingErrors, setShippingErrors] = useState({});
 
+  // ✅ FIX 1: Scroll to top when page loads
+  useEffect(() => { window.scrollTo(0, 0); }, []);
+
   useEffect(() => {
     if (user && step === 'login') setStep('shipping');
   }, [user]); // eslint-disable-line
@@ -147,13 +150,12 @@ const CheckoutPage = () => {
     if (cart.length === 0) { toast.error('Your cart is empty'); return; }
     setProcessingPayment(true);
 
-    let razorpayOrderId = null; // track for cancel cleanup
+    let razorpayOrderId = null;
 
     try {
       const token      = localStorage.getItem('token');
       const totalAmount = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
-      // ── STEP 1: Create Razorpay order on backend ──
       const orderResponse = await axios.post(
         `${API}/orders/create`,
         {
@@ -180,7 +182,7 @@ const CheckoutPage = () => {
         return;
       }
 
-      razorpayOrderId = razorpay_order.id; // save for cancel cleanup
+      razorpayOrderId = razorpay_order.id;
 
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) {
@@ -190,15 +192,14 @@ const CheckoutPage = () => {
       }
 
       const options = {
-        // ✅ Hardcode your test key here — Key ID is always public, this is correct
-        key:         'rzp_test_YOUR_KEY_HERE', // ← Replace with your rzp_test_xxx key
+        // ✅ FIX 2: Use environment variable — no code change needed when switching test ↔ live
+        key:         process.env.REACT_APP_RAZORPAY_KEY_ID,
         amount:      razorpay_order.amount,
         currency:    'INR',
         name:        'Besties Craft',
         description: 'Handmade Products',
         order_id:    razorpay_order.id,
 
-        // ── STEP 2: Payment success → verify with backend → save real order ──
         handler: async (response) => {
           try {
             const verifyRes = await axios.post(`${API}/orders/verify-payment`, {
@@ -207,7 +208,6 @@ const CheckoutPage = () => {
               razorpay_signature:  response.razorpay_signature,
             });
 
-            // Backend returns the real confirmed order_id after saving to DB
             const confirmedOrderId = verifyRes.data.order_id;
 
             setCart([]);
@@ -228,11 +228,9 @@ const CheckoutPage = () => {
         },
         theme: { color: '#c2602a' },
 
-        // ── STEP 3: User cancelled/closed modal → clean up pending ──
         modal: {
           ondismiss: async () => {
             try {
-              // Clean up the pending payment from backend
               await axios.post(`${API}/orders/cancel-pending`, {
                 razorpay_order_id: razorpayOrderId
               });
@@ -249,7 +247,6 @@ const CheckoutPage = () => {
 
     } catch (err) {
       console.error('Payment error:', err);
-      // Clean up pending if something went wrong before modal opened
       if (razorpayOrderId) {
         try {
           await axios.post(`${API}/orders/cancel-pending`, { razorpay_order_id: razorpayOrderId });
