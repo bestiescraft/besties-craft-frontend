@@ -85,7 +85,7 @@ const AdminOrdersPage = () => {
   const [orders,         setOrders]         = useState([]);
   const [loading,        setLoading]        = useState(true);
   const [filter,         setFilter]         = useState('all');
-  const [bookingOrderId, setBookingOrderId] = useState(null); // which order is being booked
+  const [bookingOrderId, setBookingOrderId] = useState(null);
 
   useEffect(() => { fetchOrders(); }, []);
 
@@ -132,7 +132,6 @@ const AdminOrdersPage = () => {
       );
       const data = res.data;
       toast.success(`✅ Courier booked via ${data.courier || 'Shiprocket'}! AWB: ${data.awb}`);
-      // Update order in state with Shiprocket details
       setOrders(prev => prev.map(o => {
         if ((o._id || o.id) === orderId) {
           return {
@@ -221,6 +220,10 @@ const AdminOrdersPage = () => {
           color: #7c3aed; font-size: 0.78rem; font-weight: 600;
           text-decoration: underline; cursor: pointer; background: none; border: none;
         }
+        .status-done-note {
+          display: inline-flex; align-items: center; gap: 0.4rem;
+          font-size: 0.78rem; color: #9a8070; font-style: italic;
+        }
       `}</style>
 
       <div>
@@ -261,11 +264,15 @@ const AdminOrdersPage = () => {
         ) : filteredOrders.length > 0 ? (
           <div className="space-y-6" data-testid="orders-list">
             {filteredOrders.map((order, index) => {
-              const orderId    = order._id || order.id;
-              const ship       = order.shipping_details || {};
-              const hasCustom  = order.has_customisation;
-              const hasAwb     = !!order.shiprocket_awb;
-              const isBooking  = bookingOrderId === orderId;
+              const orderId   = order._id || order.id;
+              const ship      = order.shipping_details || {};
+              const hasCustom = order.has_customisation;
+              const hasAwb    = !!order.shiprocket_awb;
+              const isBooking = bookingOrderId === orderId;
+
+              // ── Hide action buttons for completed/cancelled orders ──
+              const status        = order.order_status || 'pending';
+              const isClosedOrder = status === 'delivered' || status === 'cancelled';
 
               return (
                 <motion.div
@@ -309,8 +316,8 @@ const AdminOrdersPage = () => {
                     </div>
 
                     <div className="flex flex-col items-start lg:items-end gap-3">
-                      <span className={`px-4 py-2 rounded-full text-sm font-medium capitalize ${getStatusColor(order.order_status)}`}>
-                        {order.order_status || 'pending'}
+                      <span className={`px-4 py-2 rounded-full text-sm font-medium capitalize ${getStatusColor(status)}`}>
+                        {status}
                       </span>
                       <span className="text-3xl font-semibold text-stone-900">
                         ₹{parseFloat(order.total_amount || 0).toLocaleString('en-IN')}
@@ -321,36 +328,42 @@ const AdminOrdersPage = () => {
                         Payment: {order.payment_status || 'pending'}
                       </span>
 
-                      {/* ── ACTION BUTTONS ── */}
-                      <div className="flex flex-wrap gap-2 justify-end">
-                        {/* Print Label */}
-                        <button className="action-btn print-btn" onClick={() => printShippingLabel(order)}>
-                          <Printer size={13} /> Print Label
-                        </button>
-
-                        {/* Book Courier or Show Tracking */}
-                        {hasAwb ? (
-                          <div className="flex flex-col items-end gap-1">
-                            <div className="booked-badge">
-                              <Truck size={12} /> {order.shiprocket_courier || 'Courier'} · {order.shiprocket_awb}
-                            </div>
-                            {order.tracking_url && (
-                              <a href={order.tracking_url} target="_blank" rel="noreferrer" className="tracking-link">
-                                <ExternalLink size={11} /> Track Parcel
-                              </a>
-                            )}
-                          </div>
-                        ) : (
-                          <button
-                            className="action-btn courier-btn"
-                            onClick={() => bookCourier(orderId)}
-                            disabled={isBooking}
-                          >
-                            <Truck size={13} />
-                            {isBooking ? 'Booking...' : 'Book Courier'}
+                      {/* ── ACTION BUTTONS — hidden for delivered / cancelled ── */}
+                      {isClosedOrder ? (
+                        <span className="status-done-note">
+                          {status === 'delivered' ? '✅ Order delivered' : '❌ Order cancelled'}
+                        </span>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 justify-end">
+                          {/* Print Label */}
+                          <button className="action-btn print-btn" onClick={() => printShippingLabel(order)}>
+                            <Printer size={13} /> Print Label
                           </button>
-                        )}
-                      </div>
+
+                          {/* Book Courier or Show Tracking */}
+                          {hasAwb ? (
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="booked-badge">
+                                <Truck size={12} /> {order.shiprocket_courier || 'Courier'} · {order.shiprocket_awb}
+                              </div>
+                              {order.tracking_url && (
+                                <a href={order.tracking_url} target="_blank" rel="noreferrer" className="tracking-link">
+                                  <ExternalLink size={11} /> Track Parcel
+                                </a>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              className="action-btn courier-btn"
+                              onClick={() => bookCourier(orderId)}
+                              disabled={isBooking}
+                            >
+                              <Truck size={13} />
+                              {isBooking ? 'Booking...' : 'Book Courier'}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -388,7 +401,7 @@ const AdminOrdersPage = () => {
                   <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                     <div className="flex-1">
                       <label className="block text-sm font-medium text-stone-700 mb-2">Update Status:</label>
-                      <Select value={order.order_status || 'pending'} onValueChange={(value) => updateOrderStatus(orderId, value)}>
+                      <Select value={status} onValueChange={(value) => updateOrderStatus(orderId, value)}>
                         <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="pending">Pending</SelectItem>
