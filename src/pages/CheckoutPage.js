@@ -190,7 +190,7 @@ const CheckoutPage = () => {
       if (!scriptLoaded) { toast.error('Failed to load payment gateway'); setProcessingPayment(false); return; }
 
       const options = {
-        key: 'rzp_test_xxxxxxxxxxxxxxxxxx',
+        key: 'rzp_test_SIpxcfKEXjmC5F',
         amount:      razorpay_order.amount,
         currency:    'INR',
         name:        'Besties Craft',
