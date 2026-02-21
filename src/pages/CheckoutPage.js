@@ -22,7 +22,6 @@ const API = `${BACKEND_URL}/api`;
 
 const PLACEHOLDER_IMG = 'https://placehold.co/64x64/e8e0d5/a09080?text=Item';
 
-// ── Safe image helper: handles item.image OR item.image_url, falls back to placeholder ──
 const getItemImage = (item) => {
   const url = item.image || item.image_url || '';
   if (!url) return PLACEHOLDER_IMG;
@@ -36,7 +35,7 @@ const ACTION_CODE_SETTINGS = {
 };
 
 const CheckoutPage = () => {
-  const navigate              = useNavigate();
+  const navigate                  = useNavigate();
   const { user, setUser, cart, setCart } = useApp();
 
   const [step,              setStep]              = useState(user ? 'shipping' : 'login');
@@ -53,28 +52,21 @@ const CheckoutPage = () => {
   });
   const [shippingErrors, setShippingErrors] = useState({});
 
-  // ── When Firebase user session is restored by App.js, skip login step ──
   useEffect(() => {
     if (user && step === 'login') setStep('shipping');
   }, [user]); // eslint-disable-line
 
-  // ── Handle return from Firebase email link (user clicked link in email) ──
   useEffect(() => {
     if (!isSignInWithEmailLink(auth, window.location.href)) return;
-
     setVerifying(true);
     let savedEmail = localStorage.getItem('emailForSignIn');
-    if (!savedEmail) {
-      savedEmail = window.prompt('Please enter the email you used to login:');
-    }
+    if (!savedEmail) savedEmail = window.prompt('Please enter the email you used to login:');
     if (!savedEmail) { setVerifying(false); return; }
-
     setLoading(true);
     signInWithEmailLink(auth, savedEmail, window.location.href)
       .then(async (result) => {
         localStorage.removeItem('emailForSignIn');
         window.history.replaceState({}, document.title, '/checkout');
-
         const firebaseUser = result.user;
         const token        = await firebaseUser.getIdToken();
         const userData     = {
@@ -85,7 +77,6 @@ const CheckoutPage = () => {
         localStorage.setItem('token', token);
         localStorage.setItem('user',  JSON.stringify(userData));
         setUser(userData);
-
         toast.success('Login successful! Now fill in your shipping details.');
         setStep('shipping');
       })
@@ -99,7 +90,6 @@ const CheckoutPage = () => {
   const sendLoginLink = async () => {
     if (!email.trim()) { toast.error('Please enter your email address'); return; }
     if (!/^\S+@\S+\.\S+$/.test(email)) { toast.error('Please enter a valid email address'); return; }
-
     setLoading(true);
     try {
       await sendSignInLinkToEmail(auth, email, ACTION_CODE_SETTINGS);
@@ -109,7 +99,7 @@ const CheckoutPage = () => {
     } catch (err) {
       console.error(err);
       if (err.code === 'auth/operation-not-allowed') {
-        toast.error('Email link sign-in not enabled. Enable "Email link" under Email/Password in Firebase Console → Authentication → Sign-in method.');
+        toast.error('Email link sign-in not enabled in Firebase Console.');
       } else {
         toast.error('Failed to send login link. Please try again.');
       }
@@ -120,16 +110,16 @@ const CheckoutPage = () => {
 
   const validateShipping = () => {
     const errors = {};
-    if (!shippingDetails.fullName.trim())                                        errors.fullName   = 'Full name is required';
-    if (!shippingDetails.email.trim())                                           errors.email      = 'Email is required';
-    else if (!/^\S+@\S+\.\S+$/.test(shippingDetails.email))                     errors.email      = 'Please enter a valid email';
-    if (!shippingDetails.phone.trim())                                           errors.phone      = 'Phone number is required';
-    else if (!/^\d{10}$/.test(shippingDetails.phone))                            errors.phone      = 'Please enter a valid 10-digit phone number';
-    if (!shippingDetails.address.trim())                                         errors.address    = 'Address is required';
-    if (!shippingDetails.city.trim())                                            errors.city       = 'City is required';
-    if (!shippingDetails.state.trim())                                           errors.state      = 'State is required';
-    if (!shippingDetails.postalCode.trim())                                      errors.postalCode = 'Postal code is required';
-    else if (!/^\d{6}$/.test(shippingDetails.postalCode))                        errors.postalCode = 'Please enter a valid 6-digit postal code';
+    if (!shippingDetails.fullName.trim())                              errors.fullName   = 'Full name is required';
+    if (!shippingDetails.email.trim())                                 errors.email      = 'Email is required';
+    else if (!/^\S+@\S+\.\S+$/.test(shippingDetails.email))           errors.email      = 'Please enter a valid email';
+    if (!shippingDetails.phone.trim())                                 errors.phone      = 'Phone number is required';
+    else if (!/^\d{10}$/.test(shippingDetails.phone))                  errors.phone      = 'Please enter a valid 10-digit phone number';
+    if (!shippingDetails.address.trim())                               errors.address    = 'Address is required';
+    if (!shippingDetails.city.trim())                                  errors.city       = 'City is required';
+    if (!shippingDetails.state.trim())                                 errors.state      = 'State is required';
+    if (!shippingDetails.postalCode.trim())                            errors.postalCode = 'Postal code is required';
+    else if (!/^\d{6}$/.test(shippingDetails.postalCode))              errors.postalCode = 'Please enter a valid 6-digit postal code';
     setShippingErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -156,20 +146,24 @@ const CheckoutPage = () => {
   const handlePayment = async () => {
     if (cart.length === 0) { toast.error('Your cart is empty'); return; }
     setProcessingPayment(true);
+
+    let razorpayOrderId = null; // track for cancel cleanup
+
     try {
       const token      = localStorage.getItem('token');
       const totalAmount = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
+      // ── STEP 1: Create Razorpay order on backend ──
       const orderResponse = await axios.post(
         `${API}/orders/create`,
         {
-          user_id:          user.id,
-          items:            cart.map(i => ({
-            product_id:   i.product_id,
-            product_name: i.product_name,
-            quantity:     i.quantity,
-            price:        i.price,
-            color:        i.color        || null,
+          user_id:  user.id,
+          items:    cart.map(i => ({
+            product_id:    i.product_id,
+            product_name:  i.product_name,
+            quantity:      i.quantity,
+            price:         i.price,
+            color:         i.color         || null,
             customisation: i.customisation || null,
           })),
           total_amount:     totalAmount,
@@ -178,7 +172,7 @@ const CheckoutPage = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      const { order, razorpay_order } = orderResponse.data;
+      const { razorpay_order } = orderResponse.data;
 
       if (!razorpay_order) {
         toast.error('Payment gateway not configured. Please contact admin.');
@@ -186,37 +180,81 @@ const CheckoutPage = () => {
         return;
       }
 
+      razorpayOrderId = razorpay_order.id; // save for cancel cleanup
+
       const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) { toast.error('Failed to load payment gateway'); setProcessingPayment(false); return; }
+      if (!scriptLoaded) {
+        toast.error('Failed to load payment gateway');
+        setProcessingPayment(false);
+        return;
+      }
 
       const options = {
-        key: 'rzp_test_SIpxcfKEXjmC5F',
+        // ✅ Hardcode your test key here — Key ID is always public, this is correct
+        key:         'rzp_test_YOUR_KEY_HERE', // ← Replace with your rzp_test_xxx key
         amount:      razorpay_order.amount,
         currency:    'INR',
         name:        'Besties Craft',
         description: 'Handmade Products',
         order_id:    razorpay_order.id,
+
+        // ── STEP 2: Payment success → verify with backend → save real order ──
         handler: async (response) => {
           try {
-            await axios.post(`${API}/orders/verify-payment`, {
+            const verifyRes = await axios.post(`${API}/orders/verify-payment`, {
               razorpay_order_id:   response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature:  response.razorpay_signature,
-              order_id:            order.id,
             });
+
+            // Backend returns the real confirmed order_id after saving to DB
+            const confirmedOrderId = verifyRes.data.order_id;
+
             setCart([]);
             toast.success('Payment successful! 🎉');
-            navigate(`/order-confirmation/${order.id}`);
-          } catch { toast.error('Payment verification failed'); }
-          finally  { setProcessingPayment(false); }
+            navigate(`/order-confirmation/${confirmedOrderId}`);
+          } catch (err) {
+            console.error('Payment verification failed:', err);
+            toast.error('Payment verification failed. Please contact support.');
+          } finally {
+            setProcessingPayment(false);
+          }
         },
-        prefill: { name: shippingDetails.fullName, email: shippingDetails.email, contact: shippingDetails.phone },
-        theme:   { color: '#D97706' },
-        modal:   { ondismiss: () => setProcessingPayment(false) },
+
+        prefill: {
+          name:    shippingDetails.fullName,
+          email:   shippingDetails.email,
+          contact: shippingDetails.phone,
+        },
+        theme: { color: '#c2602a' },
+
+        // ── STEP 3: User cancelled/closed modal → clean up pending ──
+        modal: {
+          ondismiss: async () => {
+            try {
+              // Clean up the pending payment from backend
+              await axios.post(`${API}/orders/cancel-pending`, {
+                razorpay_order_id: razorpayOrderId
+              });
+            } catch (e) {
+              console.warn('Cancel cleanup failed:', e);
+            }
+            toast.info('Payment cancelled.');
+            setProcessingPayment(false);
+          }
+        },
       };
 
       new window.Razorpay(options).open();
-    } catch {
+
+    } catch (err) {
+      console.error('Payment error:', err);
+      // Clean up pending if something went wrong before modal opened
+      if (razorpayOrderId) {
+        try {
+          await axios.post(`${API}/orders/cancel-pending`, { razorpay_order_id: razorpayOrderId });
+        } catch (e) { /* ignore */ }
+      }
       toast.error('Failed to process payment. Please try again.');
       setProcessingPayment(false);
     }
@@ -224,7 +262,6 @@ const CheckoutPage = () => {
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
-  // ── Verifying state (after clicking email link) ──
   if (verifying) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -255,11 +292,9 @@ const CheckoutPage = () => {
           {step === 'login' && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
               className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-stone-100">
-
               <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-2" data-testid="login-section-title">
                 Login to Continue
               </h2>
-
               {!linkSent ? (
                 <>
                   <p className="text-stone-500 text-sm mb-8">
@@ -270,16 +305,9 @@ const CheckoutPage = () => {
                       <Label htmlFor="checkout-email" className="text-stone-700 font-medium mb-2 block">Email Address</Label>
                       <div className="relative mt-1.5">
                         <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 w-5 h-5" />
-                        <Input
-                          id="checkout-email"
-                          type="email"
-                          placeholder="your@email.com"
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && sendLoginLink()}
-                          className="pl-12 py-6 text-lg"
-                          data-testid="email-input"
-                        />
+                        <Input id="checkout-email" type="email" placeholder="your@email.com" value={email}
+                          onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendLoginLink()}
+                          className="pl-12 py-6 text-lg" data-testid="email-input" />
                       </div>
                     </div>
                     <Button onClick={sendLoginLink} disabled={loading} className="btn-primary w-full py-6 text-lg" data-testid="send-otp-button">
@@ -310,12 +338,9 @@ const CheckoutPage = () => {
           {step === 'shipping' && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
               className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-stone-100">
-
               <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-2" data-testid="shipping-section-title">Shipping Address</h2>
               <p className="text-stone-600 mb-8">Please enter your delivery address</p>
-
               <div className="space-y-6">
-                {/* Full Name */}
                 <div>
                   <Label htmlFor="fullName" className="text-stone-700 font-medium mb-2">Full Name *</Label>
                   <div className="relative">
@@ -326,8 +351,6 @@ const CheckoutPage = () => {
                   </div>
                   {shippingErrors.fullName && <p className="text-red-600 text-sm mt-2">{shippingErrors.fullName}</p>}
                 </div>
-
-                {/* Email */}
                 <div>
                   <Label htmlFor="shippingEmail" className="text-stone-700 font-medium mb-2">Email Address *</Label>
                   <div className="relative">
@@ -338,8 +361,6 @@ const CheckoutPage = () => {
                   </div>
                   {shippingErrors.email && <p className="text-red-600 text-sm mt-2">{shippingErrors.email}</p>}
                 </div>
-
-                {/* Phone */}
                 <div>
                   <Label htmlFor="shippingPhone" className="text-stone-700 font-medium mb-2">Phone Number *</Label>
                   <div className="relative">
@@ -350,8 +371,6 @@ const CheckoutPage = () => {
                   </div>
                   {shippingErrors.phone && <p className="text-red-600 text-sm mt-2">{shippingErrors.phone}</p>}
                 </div>
-
-                {/* Address */}
                 <div>
                   <Label htmlFor="address" className="text-stone-700 font-medium mb-2">Street Address *</Label>
                   <div className="relative">
@@ -362,8 +381,6 @@ const CheckoutPage = () => {
                   </div>
                   {shippingErrors.address && <p className="text-red-600 text-sm mt-2">{shippingErrors.address}</p>}
                 </div>
-
-                {/* City */}
                 <div>
                   <Label htmlFor="city" className="text-stone-700 font-medium mb-2">City *</Label>
                   <Input id="city" type="text" placeholder="Enter your city"
@@ -371,8 +388,6 @@ const CheckoutPage = () => {
                     className="py-6 text-lg" data-testid="city-input" />
                   {shippingErrors.city && <p className="text-red-600 text-sm mt-2">{shippingErrors.city}</p>}
                 </div>
-
-                {/* State */}
                 <div>
                   <Label htmlFor="state" className="text-stone-700 font-medium mb-2">State *</Label>
                   <Input id="state" type="text" placeholder="Enter your state"
@@ -380,8 +395,6 @@ const CheckoutPage = () => {
                     className="py-6 text-lg" data-testid="state-input" />
                   {shippingErrors.state && <p className="text-red-600 text-sm mt-2">{shippingErrors.state}</p>}
                 </div>
-
-                {/* Postal Code */}
                 <div>
                   <Label htmlFor="postalCode" className="text-stone-700 font-medium mb-2">Postal Code (6-digit) *</Label>
                   <Input id="postalCode" type="tel" placeholder="Enter 6-digit postal code"
@@ -389,13 +402,10 @@ const CheckoutPage = () => {
                     maxLength={6} className="py-6 text-lg" data-testid="postal-code-input" />
                   {shippingErrors.postalCode && <p className="text-red-600 text-sm mt-2">{shippingErrors.postalCode}</p>}
                 </div>
-
-                {/* Country */}
                 <div>
                   <Label htmlFor="country" className="text-stone-700 font-medium mb-2">Country</Label>
                   <Input id="country" type="text" value="India" disabled className="py-6 text-lg bg-stone-100 cursor-not-allowed" data-testid="country-input" />
                 </div>
-
                 <Button onClick={handleContinueToPayment} className="btn-primary w-full py-6 text-lg" data-testid="continue-to-payment-button">
                   Continue to Payment
                 </Button>
@@ -407,8 +417,6 @@ const CheckoutPage = () => {
           {step === 'payment' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }} className="space-y-6">
-
-                {/* Order items */}
                 <div className="bg-white rounded-2xl p-8 shadow-lg border border-stone-100">
                   <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-6">Order Items</h2>
                   <div className="space-y-4" data-testid="checkout-items">
@@ -416,21 +424,13 @@ const CheckoutPage = () => {
                       <div key={`${item.product_id}-${index}`}
                         className="flex items-center gap-4 pb-4 border-b border-stone-100 last:border-0"
                         data-testid={`checkout-item-${index}`}>
-
-                        {/* ── IMAGE FIX: uses getItemImage() which handles item.image, item.image_url, relative URLs, and missing images ── */}
-                        <img
-                          src={getItemImage(item)}
-                          alt={item.product_name || 'Product'}
+                        <img src={getItemImage(item)} alt={item.product_name || 'Product'}
                           className="w-16 h-16 rounded-lg object-cover flex-shrink-0 bg-stone-100"
-                          onError={e => { e.target.src = PLACEHOLDER_IMG; }}
-                        />
-
+                          onError={e => { e.target.src = PLACEHOLDER_IMG; }} />
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium text-stone-900 truncate">{item.product_name}</h3>
                           {item.color && <p className="text-xs text-stone-500">Colour: {item.color}</p>}
-                          {item.customisation && (
-                            <p className="text-xs text-amber-700 mt-0.5 truncate">✎ {item.customisation}</p>
-                          )}
+                          {item.customisation && <p className="text-xs text-amber-700 mt-0.5 truncate">✎ {item.customisation}</p>}
                           <p className="text-sm text-stone-600">Qty: {item.quantity}</p>
                         </div>
                         <p className="font-semibold text-stone-900 flex-shrink-0">₹{(item.price * item.quantity).toLocaleString('en-IN')}</p>
@@ -439,7 +439,6 @@ const CheckoutPage = () => {
                   </div>
                 </div>
 
-                {/* Delivery address summary */}
                 <div className="bg-white rounded-2xl p-8 shadow-lg border border-stone-100">
                   <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-6">Delivery Address</h2>
                   <div className="space-y-1 text-stone-700">
@@ -458,7 +457,6 @@ const CheckoutPage = () => {
                 </div>
               </motion.div>
 
-              {/* Payment summary */}
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
                 <div className="bg-stone-100 rounded-2xl p-8 sticky top-24">
                   <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-6">Payment Summary</h2>
@@ -478,18 +476,16 @@ const CheckoutPage = () => {
                       </div>
                     </div>
                   </div>
-
                   <Button onClick={handlePayment} disabled={processingPayment || cart.length === 0}
                     className="btn-primary w-full py-6 text-lg" data-testid="pay-now-button">
                     <Lock className="w-5 h-5 mr-2" />
                     {processingPayment ? 'Processing…' : 'Pay Now'}
                   </Button>
-                  <p className="text-center text-sm text-stone-600 mt-4">Secured by Razorpay</p>
+                  <p className="text-center text-sm text-stone-600 mt-4">🔒 Secured by Razorpay</p>
                 </div>
               </motion.div>
             </div>
           )}
-
         </div>
       </div>
       <Footer />
