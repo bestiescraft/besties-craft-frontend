@@ -4,38 +4,46 @@ import { ShoppingCart, User, Menu, X, LogOut } from 'lucide-react';
 import { useApp } from '@/App';
 import { CartSidebar } from '@/components/CartSidebar';
 
-/* ── Logo B — inline SVG, designed for cream navbar ── */
+/* ── Logo — dark circle stamp matching pic 1 design, with BC monogram ── */
 const LogoB = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" height="46" style={{ display: 'block' }}>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 310 72" height="56" style={{ display: 'block' }}>
     <defs>
       <radialGradient id="monoBg" cx="50%" cy="50%" r="50%">
         <stop offset="0%" stopColor="#2c1810"/>
-        <stop offset="100%" stopColor="#1e0c06"/>
+        <stop offset="100%" stopColor="#1a0a04"/>
       </radialGradient>
     </defs>
-    {/* Monogram circle */}
-    <circle cx="32" cy="32" r="28" fill="url(#monoBg)"/>
-    <circle cx="32" cy="32" r="24" fill="none" stroke="#c2602a" strokeWidth="1.4"/>
-    <circle cx="32" cy="32" r="18" fill="none" stroke="#c2602a" strokeWidth="0.5" opacity="0.3"/>
-    <text x="32" y="42" textAnchor="middle"
-      fontFamily="Georgia, serif" fontSize="26" fontStyle="italic" fontWeight="bold"
-      fill="#e8a87c">B</text>
-    {/* Vertical divider */}
-    <line x1="72" y1="12" x2="72" y2="52" stroke="#c2602a" strokeWidth="0.8" opacity="0.3"/>
-    {/* Tag */}
-    <text x="84" y="22" fontFamily="Georgia, serif" fontSize="6"
-      fill="#c2602a" letterSpacing="2.5" opacity="0.9">✦ ARTISAN COLLECTION</text>
+
+    {/* ── Dark circle — same as pic 1 ── */}
+    <circle cx="36" cy="36" r="34" fill="url(#monoBg)"/>
+    {/* Primary terracotta ring */}
+    <circle cx="36" cy="36" r="30" fill="none" stroke="#c2602a" strokeWidth="1.6"/>
+    {/* Inner faint dashed accent ring */}
+    <circle cx="36" cy="36" r="23" fill="none" stroke="#c2602a" strokeWidth="0.7" strokeDasharray="2,3.5" opacity="0.4"/>
+    {/* BC monogram — italic gold, centered */}
+    <text x="36" y="46" textAnchor="middle"
+      fontFamily="Georgia, 'Times New Roman', serif"
+      fontSize="19" fontStyle="italic" fontWeight="bold"
+      fill="#e8a87c" letterSpacing="1.5">BC</text>
+
+    {/* ── Vertical divider ── */}
+    <line x1="82" y1="14" x2="82" y2="58" stroke="#c2602a" strokeWidth="0.8" opacity="0.35"/>
+
+    {/* ── Wordmark right side ── */}
+    {/* Tag above */}
+    <text x="94" y="24" fontFamily="Georgia, serif" fontSize="6.5"
+      fill="#c2602a" letterSpacing="2.8" opacity="0.85">✦ ARTISAN COLLECTION</text>
     {/* Besties */}
-    <text x="84" y="47" fontFamily="Georgia, serif" fontSize="26"
-      fontWeight="bold" fill="#2c1810" letterSpacing="0.3">Besties </text>
+    <text x="94" y="50" fontFamily="Georgia, 'Times New Roman', serif" fontSize="27"
+      fontWeight="bold" fill="#2c1810" letterSpacing="0.5">Besties </text>
     {/* Craft italic terracotta */}
-    <text x="184" y="47" fontFamily="Georgia, serif" fontSize="26"
-      fontStyle="italic" fontWeight="bold" fill="#c2602a" letterSpacing="0.3">Craft</text>
+    <text x="205" y="50" fontFamily="Georgia, 'Times New Roman', serif" fontSize="27"
+      fontStyle="italic" fontWeight="bold" fill="#c2602a" letterSpacing="0.5">Craft</text>
     {/* Underline */}
-    <rect x="84" y="51" width="176" height="1" fill="#c2602a" rx="0.5" opacity="0.45"/>
+    <rect x="94" y="55" width="186" height="1.2" fill="#c2602a" rx="0.5" opacity="0.4"/>
     {/* Tagline */}
-    <text x="84" y="61" fontFamily="Georgia, serif" fontSize="6"
-      fill="#9a8070" letterSpacing="2">HANDCRAFTED IN INDIA</text>
+    <text x="94" y="65" fontFamily="Georgia, serif" fontSize="6"
+      fill="#9a8070" letterSpacing="2.2">HANDCRAFTED IN INDIA</text>
   </svg>
 );
 
@@ -77,17 +85,26 @@ const Navbar = () => {
           border-bottom:1px solid #e8dfd0;
           transition:box-shadow 0.3s; font-family:'Lato',sans-serif;
         }
-        .nb-root.scrolled { box-shadow:0 4px 24px rgba(44,24,16,0.08); }
+        .nb-root.scrolled { box-shadow:0 4px 28px rgba(44,24,16,0.1); }
+
+        /* ── Desktop navbar: taller, more premium ── */
         .nb-inner {
-          max-width:1180px; margin:0 auto; padding:0 1.5rem;
-          display:flex; align-items:center; justify-content:space-between; height:72px;
+          max-width:1180px; margin:0 auto; padding:0 2rem;
+          display:flex; align-items:center; justify-content:space-between;
+          height:88px;
         }
-        .nb-logo-link { text-decoration:none; display:flex; align-items:center; transition:opacity 0.2s; }
+        .nb-logo-link {
+          text-decoration:none; display:flex; align-items:center;
+          transition:opacity 0.2s;
+        }
         .nb-logo-link:hover { opacity:0.85; }
-        .nb-links { display:flex; align-items:center; gap:2rem; list-style:none; margin:0; padding:0; }
+        .nb-links {
+          display:flex; align-items:center; gap:2.2rem;
+          list-style:none; margin:0; padding:0;
+        }
         .nb-link {
-          text-decoration:none; font-size:0.88rem; font-weight:700;
-          color:#9a8070; letter-spacing:0.05em; position:relative; padding-bottom:2px;
+          text-decoration:none; font-size:0.92rem; font-weight:700;
+          color:#9a8070; letter-spacing:0.06em; position:relative; padding-bottom:3px;
           transition:color 0.2s;
         }
         .nb-link::after {
@@ -97,9 +114,9 @@ const Navbar = () => {
         }
         .nb-link:hover,.nb-link.active { color:#2c1810; }
         .nb-link:hover::after,.nb-link.active::after { width:100%; }
-        .nb-actions { display:flex; align-items:center; gap:0.5rem; }
+        .nb-actions { display:flex; align-items:center; gap:0.6rem; }
         .nb-cart-btn {
-          position:relative; background:none; border:none; width:42px; height:42px;
+          position:relative; background:none; border:none; width:44px; height:44px;
           border-radius:50%; display:flex; align-items:center; justify-content:center;
           cursor:pointer; color:#4a3728; transition:background 0.2s,color 0.2s;
         }
@@ -113,28 +130,29 @@ const Navbar = () => {
         .nb-user-pill {
           display:flex; align-items:center; gap:0.5rem;
           background:#f2ede4; border:1.5px solid #e8dfd0; border-radius:50px;
-          padding:0.4rem 1rem 0.4rem 0.6rem;
-          font-size:0.8rem; color:#5c3d2e; font-weight:700;
+          padding:0.45rem 1.1rem 0.45rem 0.6rem;
+          font-size:0.82rem; color:#5c3d2e; font-weight:700;
         }
         .nb-user-icon {
-          width:26px; height:26px; border-radius:50%; background:#c2602a; color:#fff;
+          width:28px; height:28px; border-radius:50%; background:#c2602a; color:#fff;
           display:flex; align-items:center; justify-content:center;
-          font-size:0.65rem; font-weight:700; flex-shrink:0;
+          font-size:0.68rem; font-weight:700; flex-shrink:0;
         }
         .nb-logout-btn {
           background:none; border:none; cursor:pointer; color:#9a8070;
-          padding:0.25rem; border-radius:6px; display:flex; align-items:center; transition:color 0.2s;
+          padding:0.25rem; border-radius:6px; display:flex; align-items:center;
+          transition:color 0.2s;
         }
         .nb-logout-btn:hover { color:#c2602a; }
         .nb-login-btn {
           display:inline-flex; align-items:center; gap:0.4rem;
           background:#2c1810; color:#fff; border:none; border-radius:50px;
-          padding:0.5rem 1.2rem; font-size:0.85rem; font-weight:700;
+          padding:0.6rem 1.4rem; font-size:0.88rem; font-weight:700;
           cursor:pointer; font-family:'Lato',sans-serif; transition:background 0.2s;
         }
         .nb-login-btn:hover { background:#5c3d2e; }
         .nb-hamburger {
-          display:none; background:none; border:none; width:40px; height:40px;
+          display:none; background:none; border:none; width:42px; height:42px;
           border-radius:10px; align-items:center; justify-content:center;
           cursor:pointer; color:#4a3728; transition:background 0.2s;
         }
@@ -155,7 +173,7 @@ const Navbar = () => {
         .nb-mobile-overlay.open { display:block; }
         .nb-drawer-head {
           display:flex; align-items:center; justify-content:space-between;
-          padding:0.9rem 1.25rem; border-bottom:1px solid #e8dfd0; background:#f2ede4;
+          padding:1rem 1.25rem; border-bottom:1px solid #e8dfd0; background:#f2ede4;
         }
         .nb-drawer-close {
           background:#fff; border:1.5px solid #e8dfd0; width:34px; height:34px;
@@ -164,7 +182,8 @@ const Navbar = () => {
         }
         .nb-drawer-close:hover { background:#e8dfd0; color:#2c1810; }
         .nb-drawer-links {
-          flex:1; padding:1.5rem 1rem; display:flex; flex-direction:column; gap:0.35rem; overflow-y:auto;
+          flex:1; padding:1.5rem 1rem; display:flex; flex-direction:column;
+          gap:0.35rem; overflow-y:auto;
         }
         .nb-drawer-link {
           display:flex; align-items:center; text-decoration:none;
@@ -200,7 +219,8 @@ const Navbar = () => {
         .nb-drawer-user-info { display:flex; align-items:center; gap:0.65rem; }
         .nb-drawer-user-avatar {
           width:34px; height:34px; border-radius:50%; background:#c2602a; color:#fff;
-          display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700;
+          display:flex; align-items:center; justify-content:center;
+          font-size:0.75rem; font-weight:700;
         }
         .nb-drawer-user-email {
           font-size:0.78rem; color:#5c3d2e; font-weight:700;
@@ -208,14 +228,15 @@ const Navbar = () => {
         }
         .nb-drawer-logout {
           background:none; border:none; cursor:pointer; color:#9a8070;
-          padding:0.3rem; border-radius:8px; display:flex; align-items:center; transition:color 0.15s;
+          padding:0.3rem; border-radius:8px; display:flex; align-items:center;
+          transition:color 0.15s;
         }
         .nb-drawer-logout:hover { color:#c2602a; }
 
         @media (max-width:768px) {
           .nb-links,.nb-actions { display:none !important; }
           .nb-hamburger { display:flex; }
-          .nb-inner { height:64px; }
+          .nb-inner { height:76px; padding:0 1.25rem; }
         }
       `}</style>
 
@@ -237,7 +258,7 @@ const Navbar = () => {
 
           <div className="nb-actions">
             <button className="nb-cart-btn" onClick={() => setIsCartOpen(true)} aria-label="Cart">
-              <ShoppingCart size={21} />
+              <ShoppingCart size={22} />
               {cartCount > 0 && <span className="nb-cart-count">{cartCount}</span>}
             </button>
             {user ? (
@@ -246,11 +267,13 @@ const Navbar = () => {
                 <span style={{ maxWidth:130, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                   {user.email}
                 </span>
-                <button className="nb-logout-btn" onClick={logout} title="Logout"><LogOut size={14}/></button>
+                <button className="nb-logout-btn" onClick={logout} title="Logout">
+                  <LogOut size={14}/>
+                </button>
               </div>
             ) : (
               <button className="nb-login-btn" onClick={() => navigate('/login')}>
-                <User size={14}/> Login
+                <User size={15}/> Login
               </button>
             )}
           </div>
@@ -261,7 +284,7 @@ const Navbar = () => {
         </div>
       </nav>
 
-      {/* Mobile */}
+      {/* Mobile drawer */}
       <div className={`nb-mobile-overlay${isMenuOpen ? ' open' : ''}`} onClick={() => setIsMenuOpen(false)}/>
       <div className={`nb-mobile-drawer${isMenuOpen ? ' open' : ''}`}>
         <div className="nb-drawer-head">
@@ -292,7 +315,9 @@ const Navbar = () => {
                 <div className="nb-drawer-user-avatar">{user.email?.[0]?.toUpperCase() || 'U'}</div>
                 <span className="nb-drawer-user-email">{user.email}</span>
               </div>
-              <button className="nb-drawer-logout" onClick={() => { logout(); setIsMenuOpen(false); }}><LogOut size={16}/></button>
+              <button className="nb-drawer-logout" onClick={() => { logout(); setIsMenuOpen(false); }}>
+                <LogOut size={16}/>
+              </button>
             </div>
           ) : (
             <button className="nb-drawer-login-btn" onClick={() => { navigate('/login'); setIsMenuOpen(false); }}>

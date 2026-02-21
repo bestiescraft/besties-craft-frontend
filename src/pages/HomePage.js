@@ -37,9 +37,9 @@ const FEATURES = [
 
 const PLACEHOLDER = 'https://placehold.co/400x400/e8e0d5/a09080?text=Craft';
 
-// ── Logo Wordmark — properly sized for hero section ──────────────
-// Sits below Navbar, above "Handcrafted in India" pill
-// Uses clamp so it looks great on mobile and desktop both
+// ── Hero Logo Wordmark ─────────────────────────────────────────
+// Tightened spacing: marginBottom reduced from 2rem → 0.75rem
+// so it sits snugly above the "Handcrafted in India" tags
 const LogoEHero = () => (
   <motion.div
     initial={{ opacity: 0, y: -8 }}
@@ -47,23 +47,23 @@ const LogoEHero = () => (
     transition={{ duration: 0.55, ease: 'easeOut' }}
     style={{
       display: 'inline-block',
-      marginBottom: '2rem',
+      marginBottom: '0.75rem',   // ← was 2rem, now tight & professional
     }}
   >
     {/* Top ornamental line */}
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
       <div style={{
-        flex: 1, maxWidth: 64, height: 1,
+        flex: 1, maxWidth: 56, height: 1,
         background: 'linear-gradient(90deg, transparent, rgba(194,96,42,0.6))',
       }} />
-      <span style={{ color: '#c2602a', fontSize: '0.6rem', letterSpacing: '4px' }}>✦ ✦ ✦</span>
+      <span style={{ color: '#c2602a', fontSize: '0.55rem', letterSpacing: '4px' }}>✦ ✦ ✦</span>
       <div style={{
-        flex: 1, maxWidth: 64, height: 1,
+        flex: 1, maxWidth: 56, height: 1,
         background: 'linear-gradient(90deg, rgba(194,96,42,0.6), transparent)',
       }} />
     </div>
 
-    {/* Brand name — large and readable */}
+    {/* Brand name */}
     <div style={{
       fontFamily: "'Cormorant Garamond', 'Playfair Display', Georgia, serif",
       fontSize: 'clamp(2.2rem, 5vw, 3.4rem)',
@@ -82,11 +82,11 @@ const LogoEHero = () => (
     </div>
 
     {/* Bottom ornamental line */}
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-      <div style={{ width: 40, height: 1, background: 'rgba(194,96,42,0.35)' }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+      <div style={{ width: 36, height: 1, background: 'rgba(194,96,42,0.35)' }} />
       <span style={{
         fontFamily: "'Lato', sans-serif",
-        fontSize: '0.5rem',
+        fontSize: '0.48rem',
         letterSpacing: '0.28em',
         color: 'rgba(44,24,16,0.4)',
         textTransform: 'uppercase',
@@ -94,7 +94,7 @@ const LogoEHero = () => (
       }}>
         Handcrafted in India · Est. 2025
       </span>
-      <div style={{ width: 40, height: 1, background: 'rgba(194,96,42,0.35)' }} />
+      <div style={{ width: 36, height: 1, background: 'rgba(194,96,42,0.35)' }} />
     </div>
   </motion.div>
 );
@@ -282,7 +282,7 @@ export default function HomePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              {/* Logo wordmark — below Navbar, above tags, properly sized */}
+              {/* Hero logo wordmark — tighter spacing now */}
               <LogoEHero />
 
               {/* Tags row */}
