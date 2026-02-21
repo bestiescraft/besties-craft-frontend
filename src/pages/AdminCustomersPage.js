@@ -21,9 +21,9 @@ const AdminCustomersPage = () => {
       const token = localStorage.getItem('admin_token');
       const response = await axios.get(
         `${API}/admin/customers`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { 'admin-token': token } }  // ✅ FIXED: was Authorization Bearer, now matches orders page
       );
-      setCustomers(response.data);
+      setCustomers(response.data.customers || response.data || []);
     } catch (error) {
       toast.error('Failed to fetch customers');
     } finally {
@@ -58,7 +58,7 @@ const AdminCustomersPage = () => {
                 <tbody className="divide-y divide-stone-100">
                   {customers.map((customer, index) => (
                     <motion.tr
-                      key={customer.id}
+                      key={customer.id || customer._id || index}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -72,27 +72,27 @@ const AdminCustomersPage = () => {
                           </div>
                           <div>
                             <p className="font-medium text-stone-900">{customer.name || 'Customer'}</p>
-                            <p className="text-xs text-stone-500">ID: {customer.id.slice(0, 8)}</p>
+                            <p className="text-xs text-stone-500">ID: {(customer.id || customer._id || '').toString().slice(0, 8)}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 text-stone-600">
                           <Mail className="w-4 h-4" />
-                          <span className="text-sm" data-testid={`customer-email-${index}`}>{customer.email}</span>
+                          <span className="text-sm" data-testid={`customer-email-${index}`}>{customer.email || '—'}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 text-stone-600">
                           <Phone className="w-4 h-4" />
-                          <span className="text-sm" data-testid={`customer-phone-${index}`}>{customer.phone}</span>
+                          <span className="text-sm" data-testid={`customer-phone-${index}`}>{customer.phone || '—'}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 text-stone-600">
                           <Calendar className="w-4 h-4" />
                           <span className="text-sm" data-testid={`customer-date-${index}`}>
-                            {new Date(customer.created_at).toLocaleDateString()}
+                            {customer.created_at ? new Date(customer.created_at).toLocaleDateString('en-IN') : '—'}
                           </span>
                         </div>
                       </td>

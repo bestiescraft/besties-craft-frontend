@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Phone, Mail, Pencil, AlertCircle } from 'lucide-react';
+import { Package, Phone, Mail, Pencil, AlertCircle, Printer } from 'lucide-react';
 import { AdminLayout } from '@/components/AdminLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import axios from 'axios';
@@ -8,6 +8,149 @@ import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// ─── Print Shipping Label ───────────────────────────────────────────────────
+const printShippingLabel = (order) => {
+  const ship    = order.shipping_details || {};
+  const orderId = (order._id || order.id || '').slice(-8).toUpperCase();
+  const date    = order.createdAt || order.created_at
+    ? new Date(order.createdAt || order.created_at).toLocaleDateString('en-IN')
+    : new Date().toLocaleDateString('en-IN');
+
+  const items = (order.items || [])
+    .map(i => `${i.product_name} × ${i.quantity}${i.color ? ` (${i.color})` : ''}`)
+    .join('<br/>');
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8"/>
+      <title>Shipping Label — Order #${orderId}</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Lato:wght@400;700&display=swap');
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Lato',sans-serif; background:#fff; padding:20px; }
+        .label {
+          width: 10cm; min-height: 15cm;
+          border: 2.5px solid #2c1810;
+          border-radius: 8px;
+          padding: 18px;
+          margin: 0 auto;
+          position: relative;
+        }
+        .header {
+          text-align: center;
+          border-bottom: 2px solid #2c1810;
+          padding-bottom: 12px;
+          margin-bottom: 14px;
+        }
+        .brand { font-family:'Playfair Display',serif; font-size:20px; color:#2c1810; font-weight:700; }
+        .brand-sub { font-size:9px; letter-spacing:0.2em; color:#c2602a; text-transform:uppercase; margin-top:2px; }
+        .section { margin-bottom:12px; }
+        .section-title {
+          font-size:8px; font-weight:700; letter-spacing:0.2em;
+          text-transform:uppercase; color:#c2602a;
+          border-bottom:1px solid #e8dfd0; padding-bottom:3px; margin-bottom:6px;
+        }
+        .address-name { font-size:14px; font-weight:700; color:#1a0a04; margin-bottom:3px; }
+        .address-line { font-size:11px; color:#3a2010; line-height:1.6; }
+        .phone-line { font-size:11px; color:#3a2010; margin-top:4px; }
+        .order-box {
+          background:#f5ede0; border-radius:6px; padding:8px 10px;
+          margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;
+        }
+        .order-id { font-size:13px; font-weight:700; color:#2c1810; }
+        .order-date { font-size:10px; color:#7a6050; }
+        .items { font-size:10px; color:#3a2010; line-height:1.7; }
+        .total-row { display:flex; justify-content:space-between; margin-top:8px; padding-top:8px; border-top:1px solid #e8dfd0; }
+        .total-label { font-size:10px; font-weight:700; color:#2c1810; }
+        .total-val { font-size:13px; font-weight:700; color:#2c1810; }
+        .from-box {
+          border:1px dashed #c2602a; border-radius:6px; padding:8px 10px;
+          margin-top:12px;
+        }
+        .barcode-area {
+          text-align:center; margin-top:12px;
+          font-size:9px; color:#9a8070; letter-spacing:0.15em;
+          border-top:1px solid #e8dfd0; padding-top:10px;
+        }
+        .barcode-text { font-size:16px; letter-spacing:0.3em; color:#2c1810; font-weight:700; }
+        @media print {
+          body { padding:0; }
+          .no-print { display:none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="no-print" style="text-align:center;margin-bottom:16px;">
+        <button onclick="window.print()" style="background:#2c1810;color:#fff;border:none;padding:10px 28px;border-radius:6px;font-size:14px;cursor:pointer;font-family:Lato,sans-serif;">
+          🖨️ Print Label
+        </button>
+      </div>
+
+      <div class="label">
+        <!-- HEADER -->
+        <div class="header">
+          <div class="brand">Besties Craft</div>
+          <div class="brand-sub">Handcrafted with Love · India</div>
+        </div>
+
+        <!-- ORDER INFO -->
+        <div class="order-box">
+          <div>
+            <div style="font-size:8px;color:#c2602a;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:2px;">Order ID</div>
+            <div class="order-id">#${orderId}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:8px;color:#c2602a;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:2px;">Date</div>
+            <div class="order-date">${date}</div>
+          </div>
+        </div>
+
+        <!-- SHIP TO -->
+        <div class="section">
+          <div class="section-title">📦 Ship To</div>
+          <div class="address-name">${ship.fullName || order.user_name || '—'}</div>
+          <div class="address-line">${ship.address || '—'}</div>
+          <div class="address-line">${ship.city || ''}, ${ship.state || ''} — ${ship.postalCode || ''}</div>
+          <div class="address-line">${ship.country || 'India'}</div>
+          <div class="phone-line">📱 ${ship.phone || order.user_phone || '—'}</div>
+          <div class="phone-line">✉️ ${ship.email || order.user_email || '—'}</div>
+        </div>
+
+        <!-- ITEMS -->
+        <div class="section">
+          <div class="section-title">🛍️ Items</div>
+          <div class="items">${items}</div>
+          <div class="total-row">
+            <div class="total-label">Total Amount</div>
+            <div class="total-val">₹${parseFloat(order.total_amount || 0).toLocaleString('en-IN')}</div>
+          </div>
+        </div>
+
+        <!-- FROM -->
+        <div class="from-box">
+          <div class="section-title" style="border:none;padding:0;margin-bottom:4px;">Return Address (From)</div>
+          <div style="font-size:11px;font-weight:700;color:#2c1810;">Besties Craft</div>
+          <div style="font-size:10px;color:#7a6050;">Varanasi, Uttar Pradesh, India</div>
+        </div>
+
+        <!-- BARCODE AREA -->
+        <div class="barcode-area">
+          <div class="barcode-text">||||| ${orderId} |||||</div>
+          <div style="margin-top:4px;">Order Ref: ${orderId}</div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const win = window.open('', '_blank', 'width=450,height=700');
+  win.document.write(html);
+  win.document.close();
+};
+// ───────────────────────────────────────────────────────────────────────────
 
 const AdminOrdersPage = () => {
   const [orders,  setOrders]  = useState([]);
@@ -94,6 +237,15 @@ const AdminOrdersPage = () => {
           padding: 0.85rem 1.25rem; margin-bottom: 1.5rem;
           font-size: 0.88rem; color: #92400e;
         }
+        .print-btn {
+          display: inline-flex; align-items: center; gap: 0.4rem;
+          background: #2c1810; color: #f2e8d8;
+          border: none; border-radius: 8px;
+          padding: 0.55rem 1.1rem; font-size: 0.82rem; font-weight: 600;
+          cursor: pointer; transition: background 0.2s;
+          font-family: inherit;
+        }
+        .print-btn:hover { background: #c2602a; }
       `}</style>
 
       <div>
@@ -190,6 +342,10 @@ const AdminOrdersPage = () => {
                           ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
                         Payment: {order.payment_status || 'pending'}
                       </span>
+                      {/* ✅ PRINT LABEL BUTTON */}
+                      <button className="print-btn" onClick={() => printShippingLabel(order)}>
+                        <Printer size={13} /> Print Label
+                      </button>
                     </div>
                   </div>
 
