@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, MapPin, User, Phone } from 'lucide-react';
+import { Mail, Lock, MapPin, User, Phone, Truck, Loader } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 const PLACEHOLDER_IMG = 'https://placehold.co/64x64/e8e0d5/a09080?text=Item';
+const FALLBACK_SHIPPING = 60; // ₹60 flat if API fails
 
 const getItemImage = (item) => {
   const url = item.image || item.image_url || '';
@@ -35,7 +36,7 @@ const ACTION_CODE_SETTINGS = {
 };
 
 const CheckoutPage = () => {
-  const navigate                  = useNavigate();
+  const navigate                        = useNavigate();
   const { user, setUser, cart, setCart } = useApp();
 
   const [step,              setStep]              = useState(user ? 'shipping' : 'login');
@@ -45,6 +46,13 @@ const CheckoutPage = () => {
   const [verifying,         setVerifying]         = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
 
+  // ── Shipping rate state ──
+  const [shippingCost,    setShippingCost]    = useState(null);   // null = not fetched yet
+  const [shippingCourier, setShippingCourier] = useState('');
+  const [shippingEtd,     setShippingEtd]     = useState('');
+  const [fetchingRate,    setFetchingRate]    = useState(false);
+  const [rateError,       setRateError]       = useState('');
+
   const [shippingDetails, setShippingDetails] = useState({
     fullName: '', email: '', phone: '',
     address: '', city: '', state: '',
@@ -52,7 +60,6 @@ const CheckoutPage = () => {
   });
   const [shippingErrors, setShippingErrors] = useState({});
 
-  // ✅ FIX 1: Scroll to top when page loads
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
   useEffect(() => {
@@ -90,6 +97,55 @@ const CheckoutPage = () => {
       .finally(() => { setLoading(false); setVerifying(false); });
   }, []); // eslint-disable-line
 
+  // ── Fetch live shipping rate from Shiprocket via our backend ──
+  const fetchShippingRate = useCallback(async (pincode) => {
+    if (!pincode || !/^\d{6}$/.test(pincode)) {
+      setShippingCost(null);
+      setRateError('');
+      return;
+    }
+    setFetchingRate(true);
+    setRateError('');
+    setShippingCost(null);
+    setShippingCourier('');
+    setShippingEtd('');
+    try {
+      const res = await axios.post(`${API}/shipping-rates`, {
+        delivery_pincode: pincode,
+        cart_items: cart.map(i => ({
+          product_id: i.product_id,
+          quantity:   i.quantity,
+        })),
+      }, { timeout: 15000 });
+      const data = res.data;
+      setShippingCost(data.shipping_cost ?? FALLBACK_SHIPPING);
+      setShippingCourier(data.courier || '');
+      setShippingEtd(data.etd || '');
+      if (!data.success) {
+        setRateError(data.message || '');
+      }
+    } catch (err) {
+      console.error('Shipping rate fetch error:', err);
+      setShippingCost(FALLBACK_SHIPPING);
+      setRateError('Could not fetch live rates. Flat ₹60 applied.');
+    } finally {
+      setFetchingRate(false);
+    }
+  }, [cart]);
+
+  // Auto-fetch rate when pincode becomes valid (6 digits)
+  useEffect(() => {
+    const pincode = shippingDetails.postalCode;
+    if (/^\d{6}$/.test(pincode)) {
+      fetchShippingRate(pincode);
+    } else {
+      setShippingCost(null);
+      setShippingCourier('');
+      setShippingEtd('');
+      setRateError('');
+    }
+  }, [shippingDetails.postalCode, fetchShippingRate]);
+
   const sendLoginLink = async () => {
     if (!email.trim()) { toast.error('Please enter your email address'); return; }
     if (!/^\S+@\S+\.\S+$/.test(email)) { toast.error('Please enter a valid email address'); return; }
@@ -113,16 +169,16 @@ const CheckoutPage = () => {
 
   const validateShipping = () => {
     const errors = {};
-    if (!shippingDetails.fullName.trim())                              errors.fullName   = 'Full name is required';
-    if (!shippingDetails.email.trim())                                 errors.email      = 'Email is required';
-    else if (!/^\S+@\S+\.\S+$/.test(shippingDetails.email))           errors.email      = 'Please enter a valid email';
-    if (!shippingDetails.phone.trim())                                 errors.phone      = 'Phone number is required';
-    else if (!/^\d{10}$/.test(shippingDetails.phone))                  errors.phone      = 'Please enter a valid 10-digit phone number';
-    if (!shippingDetails.address.trim())                               errors.address    = 'Address is required';
-    if (!shippingDetails.city.trim())                                  errors.city       = 'City is required';
-    if (!shippingDetails.state.trim())                                 errors.state      = 'State is required';
-    if (!shippingDetails.postalCode.trim())                            errors.postalCode = 'Postal code is required';
-    else if (!/^\d{6}$/.test(shippingDetails.postalCode))              errors.postalCode = 'Please enter a valid 6-digit postal code';
+    if (!shippingDetails.fullName.trim())                             errors.fullName   = 'Full name is required';
+    if (!shippingDetails.email.trim())                                errors.email      = 'Email is required';
+    else if (!/^\S+@\S+\.\S+$/.test(shippingDetails.email))          errors.email      = 'Please enter a valid email';
+    if (!shippingDetails.phone.trim())                                errors.phone      = 'Phone number is required';
+    else if (!/^\d{10}$/.test(shippingDetails.phone))                 errors.phone      = 'Please enter a valid 10-digit phone number';
+    if (!shippingDetails.address.trim())                              errors.address    = 'Address is required';
+    if (!shippingDetails.city.trim())                                 errors.city       = 'City is required';
+    if (!shippingDetails.state.trim())                                errors.state      = 'State is required';
+    if (!shippingDetails.postalCode.trim())                           errors.postalCode = 'Postal code is required';
+    else if (!/^\d{6}$/.test(shippingDetails.postalCode))             errors.postalCode = 'Please enter a valid 6-digit postal code';
     setShippingErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -133,8 +189,21 @@ const CheckoutPage = () => {
   };
 
   const handleContinueToPayment = () => {
-    if (validateShipping()) { setStep('payment'); toast.success('Shipping details saved!'); }
-    else toast.error('Please fill in all required fields correctly');
+    if (!validateShipping()) {
+      toast.error('Please fill in all required fields correctly');
+      return;
+    }
+    // If rate still loading, wait
+    if (fetchingRate) {
+      toast.info('Fetching shipping rate, please wait a moment…');
+      return;
+    }
+    // If no rate yet (pincode valid but fetch not done), use fallback
+    if (shippingCost === null) {
+      setShippingCost(FALLBACK_SHIPPING);
+    }
+    setStep('payment');
+    toast.success('Shipping details saved!');
   };
 
   const loadRazorpayScript = () => new Promise((resolve) => {
@@ -153,8 +222,10 @@ const CheckoutPage = () => {
     let razorpayOrderId = null;
 
     try {
-      const token      = localStorage.getItem('token');
-      const totalAmount = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+      const token       = localStorage.getItem('token');
+      const subtotal    = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+      const shipping    = shippingCost ?? FALLBACK_SHIPPING;
+      const totalAmount = subtotal + shipping;   // ← includes shipping
 
       const orderResponse = await axios.post(
         `${API}/orders/create`,
@@ -192,7 +263,6 @@ const CheckoutPage = () => {
       }
 
       const options = {
-        // ✅ FIX 2: Use environment variable — no code change needed when switching test ↔ live
         key:         process.env.REACT_APP_RAZORPAY_KEY_ID,
         amount:      razorpay_order.amount,
         currency:    'INR',
@@ -207,9 +277,7 @@ const CheckoutPage = () => {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature:  response.razorpay_signature,
             });
-
             const confirmedOrderId = verifyRes.data.order_id;
-
             setCart([]);
             toast.success('Payment successful! 🎉');
             navigate(`/order-confirmation/${confirmedOrderId}`);
@@ -257,7 +325,9 @@ const CheckoutPage = () => {
     }
   };
 
-  const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const subtotal     = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const finalShipping = shippingCost ?? 0;
+  const total        = subtotal + finalShipping;
 
   if (verifying) {
     return (
@@ -392,19 +462,46 @@ const CheckoutPage = () => {
                     className="py-6 text-lg" data-testid="state-input" />
                   {shippingErrors.state && <p className="text-red-600 text-sm mt-2">{shippingErrors.state}</p>}
                 </div>
+
+                {/* ── Postal code + live rate preview ── */}
                 <div>
                   <Label htmlFor="postalCode" className="text-stone-700 font-medium mb-2">Postal Code (6-digit) *</Label>
                   <Input id="postalCode" type="tel" placeholder="Enter 6-digit postal code"
                     value={shippingDetails.postalCode} onChange={e => handleShippingChange('postalCode', e.target.value)}
                     maxLength={6} className="py-6 text-lg" data-testid="postal-code-input" />
                   {shippingErrors.postalCode && <p className="text-red-600 text-sm mt-2">{shippingErrors.postalCode}</p>}
+
+                  {/* Rate status pill shown below pincode */}
+                  {/^\d{6}$/.test(shippingDetails.postalCode) && (
+                    <div className="mt-3">
+                      {fetchingRate && (
+                        <div className="flex items-center gap-2 text-sm text-stone-500">
+                          <Loader size={14} className="animate-spin" />
+                          Fetching live shipping rate…
+                        </div>
+                      )}
+                      {!fetchingRate && shippingCost !== null && (
+                        <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg w-fit
+                          ${rateError ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
+                          <Truck size={14} />
+                          {rateError
+                            ? `⚠ ${rateError}`
+                            : `₹${shippingCost}${shippingCourier ? ` via ${shippingCourier}` : ''}${shippingEtd ? ` · Est: ${shippingEtd}` : ''}`
+                          }
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+
                 <div>
                   <Label htmlFor="country" className="text-stone-700 font-medium mb-2">Country</Label>
                   <Input id="country" type="text" value="India" disabled className="py-6 text-lg bg-stone-100 cursor-not-allowed" data-testid="country-input" />
                 </div>
-                <Button onClick={handleContinueToPayment} className="btn-primary w-full py-6 text-lg" data-testid="continue-to-payment-button">
-                  Continue to Payment
+
+                <Button onClick={handleContinueToPayment} disabled={fetchingRate}
+                  className="btn-primary w-full py-6 text-lg" data-testid="continue-to-payment-button">
+                  {fetchingRate ? 'Calculating shipping…' : 'Continue to Payment'}
                 </Button>
               </div>
             </motion.div>
@@ -462,21 +559,43 @@ const CheckoutPage = () => {
                       <span>Subtotal</span>
                       <span data-testid="payment-subtotal">₹{subtotal.toLocaleString('en-IN')}</span>
                     </div>
+
+                    {/* ── Shipping row — live rate ── */}
                     <div className="flex justify-between text-stone-600">
-                      <span>Shipping</span>
-                      <span className="text-green-700 font-semibold">Free</span>
+                      <span className="flex items-center gap-1.5">
+                        Shipping
+                        {shippingCourier && (
+                          <span className="text-xs text-stone-400">({shippingCourier})</span>
+                        )}
+                      </span>
+                      <span className="font-semibold text-stone-800">
+                        {shippingCost === null
+                          ? <span className="text-stone-400 text-sm">Calculating…</span>
+                          : `₹${finalShipping.toLocaleString('en-IN')}`
+                        }
+                      </span>
                     </div>
+
+                    {/* ETD if available */}
+                    {shippingEtd && (
+                      <p className="text-xs text-stone-500 -mt-2 flex items-center gap-1">
+                        <Truck size={11} /> Est. delivery: {shippingEtd}
+                      </p>
+                    )}
+
                     <div className="border-t border-stone-300 pt-4">
                       <div className="flex justify-between text-stone-900 text-xl font-semibold">
                         <span>Total</span>
-                        <span data-testid="payment-total">₹{subtotal.toLocaleString('en-IN')}</span>
+                        <span data-testid="payment-total">₹{total.toLocaleString('en-IN')}</span>
                       </div>
+                      <p className="text-xs text-stone-500 mt-1">Includes ₹{finalShipping} shipping</p>
                     </div>
                   </div>
+
                   <Button onClick={handlePayment} disabled={processingPayment || cart.length === 0}
                     className="btn-primary w-full py-6 text-lg" data-testid="pay-now-button">
                     <Lock className="w-5 h-5 mr-2" />
-                    {processingPayment ? 'Processing…' : 'Pay Now'}
+                    {processingPayment ? 'Processing…' : `Pay ₹${total.toLocaleString('en-IN')}`}
                   </Button>
                   <p className="text-center text-sm text-stone-600 mt-4">🔒 Secured by Razorpay</p>
                 </div>

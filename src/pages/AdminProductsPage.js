@@ -5,7 +5,8 @@ import { AdminLayout } from '@/components/AdminLayout';
 
 const API = process.env.REACT_APP_API_URL || 'https://besties-craft-backend-1.onrender.com';
 
-const CATEGORIES = [
+// ── Built-in categories (always available) ──
+const DEFAULT_CATEGORIES = [
   { label: 'Bracelets',        value: 'bracelets',        emoji: '📿' },
   { label: 'Handmade Flowers', value: 'handmade-flowers', emoji: '🌸' },
   { label: 'Keychains',        value: 'keychains',        emoji: '🔑' },
@@ -20,18 +21,12 @@ const LEGACY_MAP = {
   handmade: 'crafts', general: 'crafts',
 };
 
-const normalizeCategory = (val) => {
-  if (!val) return '';
-  return LEGACY_MAP[val] || val;
-};
-
-// ── KEY FIX: always returns a clean deduplicated array ──
-const normalizeCategoriesArray = (cats) => {
-  let raw = [];
-  if (Array.isArray(cats))       raw = cats;
-  else if (typeof cats === 'string' && cats) raw = [cats];
-  return [...new Set(raw.map(normalizeCategory).filter(Boolean))];
-};
+const EMOJI_OPTIONS = [
+  '📦','🎀','💎','🌺','🎭','🧸','🪆','🧣','🪡','🎪',
+  '🌿','🍃','✨','🦋','🌙','⭐','🎨','🖼️','🧵','💐',
+  '🕯️','🪴','🐚','🧿','🪬','🫧','🎋','🎍','🎑','🎠',
+  '💌','🎗️','🛍️','🎁','🪞','🪟','🏮','🎆','🌈','🦄',
+];
 
 const PRESET_COLORS = [
   { name: 'Red',      hex: '#EF4444' }, { name: 'Pink',     hex: '#EC4899' },
@@ -44,29 +39,67 @@ const PRESET_COLORS = [
   { name: 'Maroon',   hex: '#7F1D1D' }, { name: 'Navy',     hex: '#1E3A5F' },
 ];
 
+const CUSTOM_CATS_KEY = 'besties_custom_categories';
+
+const loadCustomCategories = () => {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_CATS_KEY) || '[]'); }
+  catch { return []; }
+};
+
+const saveCustomCategories = (cats) => {
+  localStorage.setItem(CUSTOM_CATS_KEY, JSON.stringify(cats));
+};
+
+const normalizeCategory = (val) => {
+  if (!val) return '';
+  return LEGACY_MAP[val] || val;
+};
+
+const normalizeCategoriesArray = (cats) => {
+  let raw = [];
+  if (Array.isArray(cats))                   raw = cats;
+  else if (typeof cats === 'string' && cats) raw = [cats];
+  return [...new Set(raw.map(normalizeCategory).filter(Boolean))];
+};
+
 const fixImageUrl = (url) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   return `${API}${url}`;
 };
 
-const getCatInfo = (val) => {
-  const normalized = normalizeCategory(val);
-  return CATEGORIES.find(c => c.value === normalized) || { label: val || 'Unknown', emoji: '📦' };
-};
+const stockClass = (stock) =>
+  stock === 0 ? 'bg-red-100 text-red-700'
+  : stock < 5 ? 'bg-yellow-100 text-yellow-700'
+              : 'bg-green-100 text-green-700';
 
 function AdminProductsPage() {
   const [products,        setProducts]        = useState([]);
   const [isModalOpen,     setIsModalOpen]     = useState(false);
   const [editingProduct,  setEditingProduct]  = useState(null);
   const [formData,        setFormData]        = useState({
-    name: '', description: '', base_price: '', categories: [], stock: '', colors: [],
+    name: '', description: '', base_price: '',
+    categories: [], stock: '', colors: [], weight_grams: '500',
   });
   const [imagePreviews,   setImagePreviews]   = useState([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [loading,         setLoading]         = useState(false);
   const [searchTerm,      setSearchTerm]      = useState('');
   const [filterCat,       setFilterCat]       = useState('');
+
+  // ── Custom categories ──
+  const [customCategories, setCustomCategories] = useState(loadCustomCategories);
+  const [showAddCatForm,   setShowAddCatForm]   = useState(false);
+  const [newCatLabel,      setNewCatLabel]      = useState('');
+  const [newCatEmoji,      setNewCatEmoji]      = useState('📦');
+  const [showEmojiPicker,  setShowEmojiPicker]  = useState(false);
+
+  const ALL_CATEGORIES = [...DEFAULT_CATEGORIES, ...customCategories];
+
+  const getCatInfo = (val) => {
+    const normalized = normalizeCategory(val);
+    return ALL_CATEGORIES.find(c => c.value === normalized) || { label: val || 'Unknown', emoji: '📦' };
+  };
 
   useEffect(() => { fetchProducts(); }, []);
 
@@ -86,22 +119,45 @@ function AdminProductsPage() {
     } finally { setLoading(false); }
   };
 
+  // ── Add custom category ──
+  const handleAddCustomCategory = () => {
+    if (!newCatLabel.trim()) { toast.error('Please enter a category name'); return; }
+    const value = newCatLabel.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    if (ALL_CATEGORIES.find(c => c.value === value)) { toast.error('Category already exists'); return; }
+    const newCat = { label: newCatLabel.trim(), value, emoji: newCatEmoji, custom: true };
+    const updated = [...customCategories, newCat];
+    setCustomCategories(updated);
+    saveCustomCategories(updated);
+    setNewCatLabel('');
+    setNewCatEmoji('📦');
+    setShowAddCatForm(false);
+    setShowEmojiPicker(false);
+    toast.success(`Category "${newCat.label}" added!`);
+  };
+
+  const handleDeleteCustomCategory = (value) => {
+    if (!window.confirm('Delete this custom category?')) return;
+    const updated = customCategories.filter(c => c.value !== value);
+    setCustomCategories(updated);
+    saveCustomCategories(updated);
+    setFormData(prev => ({ ...prev, categories: prev.categories.filter(c => c !== value) }));
+    toast.success('Category removed');
+  };
+
   const openEditModal = (product) => {
     if (!product?._id) { toast.error('Invalid product data'); return; }
     setEditingProduct(product);
-
-    // ── FIXED: merge both categories and category fields when loading for edit ──
     const merged = normalizeCategoriesArray(
       product.categories?.length > 0 ? product.categories : product.category
     );
-
     setFormData({
-      name:        product.name || '',
-      description: product.description || '',
-      base_price:  product.base_price ? parseFloat(product.base_price).toString() : '0',
-      categories:  merged,
-      stock:       product.stock !== undefined ? String(product.stock) : '0',
-      colors:      product.colors || [],
+      name:         product.name || '',
+      description:  product.description || '',
+      base_price:   product.base_price ? parseFloat(product.base_price).toString() : '0',
+      categories:   merged,
+      stock:        product.stock !== undefined ? String(product.stock) : '0',
+      colors:       product.colors || [],
+      weight_grams: product.weight_grams ? String(product.weight_grams) : '500',
     });
     setImagePreviews(
       product.images?.length > 0
@@ -113,7 +169,7 @@ function AdminProductsPage() {
 
   const openAddModal = () => {
     setEditingProduct(null);
-    setFormData({ name: '', description: '', base_price: '', categories: [], stock: '', colors: [] });
+    setFormData({ name: '', description: '', base_price: '', categories: [], stock: '', colors: [], weight_grams: '500' });
     setImagePreviews([]);
     setIsModalOpen(true);
   };
@@ -121,8 +177,10 @@ function AdminProductsPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingProduct(null);
-    setFormData({ name: '', description: '', base_price: '', categories: [], stock: '', colors: [] });
+    setFormData({ name: '', description: '', base_price: '', categories: [], stock: '', colors: [], weight_grams: '500' });
     setImagePreviews([]);
+    setShowAddCatForm(false);
+    setShowEmojiPicker(false);
   };
 
   const handleInputChange = (e) => {
@@ -180,13 +238,14 @@ function AdminProductsPage() {
     if (formData.categories.length === 0) {
       toast.error('Please select at least one category'); return;
     }
-    const stockValue = parseInt(formData.stock, 10);
+    const stockValue  = parseInt(formData.stock, 10);
+    const weightValue = parseInt(formData.weight_grams, 10) || 500;
     if (isNaN(stockValue)) { toast.error('Stock must be a valid number'); return; }
+    if (weightValue < 1)   { toast.error('Weight must be at least 1 gram'); return; }
 
     const adminToken = localStorage.getItem('admin_token');
     if (!adminToken) { toast.error('Admin session expired'); return; }
 
-    // Upload any new images
     let finalImages = imagePreviews
       .filter(p => p.uploaded)
       .map((p, i) => ({ url: p.url, alt_text: formData.name, is_primary: i === 0 }));
@@ -206,19 +265,19 @@ function AdminProductsPage() {
       } finally { setUploadingImages(false); }
     }
 
-    // ── FIXED: always send categories as array AND category as first item string ──
     const cats = formData.categories;
     const productData = {
-      name:        formData.name.trim(),
-      description: formData.description.trim() || '',
-      base_price:  parseFloat(formData.base_price),
-      images:      finalImages,
-      categories:  cats,             // array → saved to DB as array
-      category:    cats[0] || 'crafts', // string → legacy field, kept in sync
-      stock:       stockValue,
-      colors:      formData.colors,
-      variants:    [],
-      skus:        [],
+      name:         formData.name.trim(),
+      description:  formData.description.trim() || '',
+      base_price:   parseFloat(formData.base_price),
+      images:       finalImages,
+      categories:   cats,
+      category:     cats[0] || 'crafts',
+      stock:        stockValue,
+      weight_grams: weightValue,
+      colors:       formData.colors,
+      variants:     [],
+      skus:         [],
     };
 
     try {
@@ -249,7 +308,6 @@ function AdminProductsPage() {
     } catch { toast.error('Failed to delete product'); }
   };
 
-  // ── FIXED: client-side filter merges both fields ──
   const displayed = products.filter(p => {
     const matchSearch = !searchTerm || p.name?.toLowerCase().includes(searchTerm.toLowerCase());
     const rawCats = [
@@ -260,11 +318,6 @@ function AdminProductsPage() {
     const matchCat = !filterCat || productCats.includes(filterCat);
     return matchSearch && matchCat;
   });
-
-  const stockClass = (stock) =>
-    stock === 0   ? 'bg-red-100 text-red-700'    :
-    stock < 5     ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-green-100 text-green-700';
 
   return (
     <AdminLayout>
@@ -296,6 +349,71 @@ function AdminProductsPage() {
         ))}
       </div>
 
+      {/* ── Custom Categories Panel ── */}
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm mb-6 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm font-bold text-stone-700">Custom Categories</p>
+            <p className="text-xs text-stone-400 mt-0.5">Add your own categories beyond the 6 defaults</p>
+          </div>
+          <button onClick={() => { setShowAddCatForm(v => !v); setShowEmojiPicker(false); }}
+            className="text-xs font-semibold text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors border border-amber-200">
+            {showAddCatForm ? '✕ Cancel' : '+ New Category'}
+          </button>
+        </div>
+
+        {showAddCatForm && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+            <p className="text-xs font-bold text-amber-700">Create a new category</p>
+            <div className="flex gap-2 items-center">
+              <div className="relative flex-shrink-0">
+                <button type="button" onClick={() => setShowEmojiPicker(v => !v)}
+                  className="w-11 h-11 border-2 border-amber-200 bg-white rounded-xl text-xl flex items-center justify-center hover:border-amber-400 transition-colors">
+                  {newCatEmoji}
+                </button>
+                {showEmojiPicker && (
+                  <div className="absolute top-12 left-0 mt-1 bg-white border border-stone-200 rounded-xl p-2 shadow-xl z-30 grid grid-cols-8 gap-1 w-64">
+                    <p className="col-span-8 text-[10px] text-stone-400 font-semibold px-1 pb-1">Pick an emoji</p>
+                    {EMOJI_OPTIONS.map(em => (
+                      <button key={em} type="button"
+                        onClick={() => { setNewCatEmoji(em); setShowEmojiPicker(false); }}
+                        className={`w-7 h-7 text-base hover:bg-stone-100 rounded-lg flex items-center justify-center ${newCatEmoji === em ? 'bg-amber-100' : ''}`}>
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <input type="text" placeholder="Category name (e.g. Resin Art)"
+                value={newCatLabel} onChange={e => setNewCatLabel(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddCustomCategory()}
+                className="flex-1 px-3 py-2.5 border border-amber-200 rounded-xl text-sm bg-white outline-none focus:border-amber-400 transition-colors" />
+              <button type="button" onClick={handleAddCustomCategory}
+                className="px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition-colors flex-shrink-0">
+                Add
+              </button>
+            </div>
+            <p className="text-xs text-amber-600">Categories are saved in this browser. Press Enter or click Add.</p>
+          </div>
+        )}
+
+        {customCategories.length === 0 && !showAddCatForm ? (
+          <p className="text-xs text-stone-400 italic">No custom categories yet. Click "+ New Category" to create one.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {customCategories.map(cat => (
+              <div key={cat.value}
+                className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1.5 rounded-full text-xs font-semibold">
+                <span>{cat.emoji}</span>
+                <span>{cat.label}</span>
+                <button onClick={() => handleDeleteCustomCategory(cat.value)}
+                  className="ml-1 text-amber-400 hover:text-red-500 transition-colors">✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6 items-center">
         <div className="relative flex-1 min-w-[180px]">
@@ -307,7 +425,7 @@ function AdminProductsPage() {
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
           className="px-4 py-2.5 border border-stone-200 rounded-xl text-sm bg-white text-stone-800 outline-none focus:border-stone-400 cursor-pointer">
           <option value="">All Categories</option>
-          {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
+          {ALL_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
         </select>
         <span className="text-xs text-stone-400 whitespace-nowrap">{displayed.length} of {products.length} products</span>
       </div>
@@ -328,7 +446,7 @@ function AdminProductsPage() {
             <table className="w-full">
               <thead className="bg-stone-50 border-b border-stone-100">
                 <tr>
-                  {['Product', 'Categories', 'Price', 'Stock', 'Colours', 'Actions'].map(h => (
+                  {['Product', 'Categories', 'Price', 'Weight', 'Stock', 'Colours', 'Actions'].map(h => (
                     <th key={h} className="text-left px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-stone-400">{h}</th>
                   ))}
                 </tr>
@@ -337,7 +455,6 @@ function AdminProductsPage() {
                 {displayed.map(product => {
                   const stock = product.stock || 0;
                   const primaryImg = product.images?.[0]?.url ? fixImageUrl(product.images[0].url) : null;
-                  // ── FIXED: merge both fields for display in table ──
                   const rawCats = [
                     ...(Array.isArray(product.categories) ? product.categories : product.categories ? [product.categories] : []),
                     ...(product.category && !Array.isArray(product.category) ? [product.category] : []),
@@ -346,7 +463,6 @@ function AdminProductsPage() {
 
                   return (
                     <tr key={product._id} className="hover:bg-stone-50 transition-colors">
-                      {/* Product */}
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           {primaryImg ? (
@@ -364,8 +480,6 @@ function AdminProductsPage() {
                           </div>
                         </div>
                       </td>
-
-                      {/* Categories — shows ALL of them */}
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap gap-1">
                           {productCats.length > 0 ? productCats.map(cat => {
@@ -378,17 +492,17 @@ function AdminProductsPage() {
                           }) : <span className="text-stone-300 text-sm">—</span>}
                         </div>
                       </td>
-
                       <td className="px-5 py-4 font-semibold text-stone-700 text-sm">
                         ₹{parseFloat(product.base_price).toLocaleString('en-IN')}
                       </td>
-
+                      <td className="px-5 py-4 text-sm text-stone-500">
+                        {product.weight_grams ? `${product.weight_grams}g` : '500g'}
+                      </td>
                       <td className="px-5 py-4">
                         <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${stockClass(stock)}`}>
                           {stock} units
                         </span>
                       </td>
-
                       <td className="px-5 py-4">
                         <div className="flex gap-1 flex-wrap">
                           {product.colors?.length > 0
@@ -399,7 +513,6 @@ function AdminProductsPage() {
                             : <span className="text-stone-300 text-sm">—</span>}
                         </div>
                       </td>
-
                       <td className="px-5 py-4">
                         <div className="flex gap-2">
                           <button onClick={() => openEditModal(product)}
@@ -421,25 +534,28 @@ function AdminProductsPage() {
         )}
       </div>
 
-      {/* ── MODAL ── */}
+      {/* ══════════════ MODAL ══════════════ */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={closeModal}>
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
 
             <div className="sticky top-0 bg-white border-b border-stone-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
               <div className="flex items-center gap-3">
-                <button onClick={closeModal} className="flex items-center gap-1.5 text-stone-400 hover:text-stone-700 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
+                <button onClick={closeModal}
+                  className="flex items-center gap-1.5 text-stone-400 hover:text-stone-700 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
                   ← Back
                 </button>
                 <h2 className="font-serif text-xl font-semibold text-stone-900">
                   {editingProduct ? '✏️ Edit Product' : '✨ Add New Product'}
                 </h2>
               </div>
-              <button onClick={closeModal} className="w-8 h-8 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 transition-colors text-sm">✕</button>
+              <button onClick={closeModal}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 transition-colors text-sm">✕</button>
             </div>
 
             <div className="p-6 space-y-7">
-              {/* Basic info */}
+
+              {/* ── Basic Info ── */}
               <section>
                 <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4 pb-2 border-b border-stone-100">Basic Information</p>
                 <div className="space-y-4">
@@ -453,42 +569,96 @@ function AdminProductsPage() {
                     <textarea className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm bg-stone-50 text-stone-900 outline-none focus:border-stone-400 focus:bg-white transition-colors resize-none"
                       name="description" value={formData.description} onChange={handleInputChange} placeholder="Describe your product…" rows="3" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Price · Stock · Weight in one row */}
+                  <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label className="block text-sm font-semibold text-stone-700 mb-1.5">Price (₹) *</label>
                       <input className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm bg-stone-50 text-stone-900 outline-none focus:border-stone-400 focus:bg-white transition-colors"
                         type="number" name="base_price" value={formData.base_price} onChange={handleInputChange} placeholder="0.00" step="0.01" min="0" />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-1.5">Stock Quantity *</label>
+                      <label className="block text-sm font-semibold text-stone-700 mb-1.5">Stock *</label>
                       <input className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm bg-stone-50 text-stone-900 outline-none focus:border-stone-400 focus:bg-white transition-colors"
                         type="number" name="stock" value={formData.stock} onChange={handleInputChange} placeholder="0" min="0" />
                     </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-stone-700 mb-1.5">
+                        Weight (g) *
+                        <span className="ml-1 text-[10px] font-normal text-stone-400">for shipping</span>
+                      </label>
+                      <input className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm bg-stone-50 text-stone-900 outline-none focus:border-stone-400 focus:bg-white transition-colors"
+                        type="number" name="weight_grams" value={formData.weight_grams} onChange={handleInputChange}
+                        placeholder="500" min="1" max="30000" />
+                    </div>
                   </div>
+                  <p className="text-xs text-stone-400">Weight examples: bracelet ≈ 50g · keychain ≈ 30g · flower bouquet ≈ 300g · gift box ≈ 800g</p>
                 </div>
               </section>
 
-              {/* Categories */}
+              {/* ── Categories ── */}
               <section>
-                <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-1 pb-2 border-b border-stone-100">
-                  Categories <span className="normal-case font-normal text-stone-400">(select up to 3)</span>
-                </p>
-                <p className="text-xs text-stone-400 mb-3">A product can appear in multiple categories — tick all that apply</p>
+                <div className="flex items-center justify-between mb-1 pb-2 border-b border-stone-100">
+                  <p className="text-xs font-bold uppercase tracking-widest text-stone-400">
+                    Categories <span className="normal-case font-normal">(select all that apply)</span>
+                  </p>
+                  <button type="button"
+                    onClick={() => { setShowAddCatForm(v => !v); setShowEmojiPicker(false); }}
+                    className="text-xs font-semibold text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1 rounded-lg transition-colors border border-amber-200">
+                    {showAddCatForm ? '✕ Cancel' : '+ New Category'}
+                  </button>
+                </div>
+
+                {/* Inline add-category form inside modal */}
+                {showAddCatForm && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <div className="relative flex-shrink-0">
+                        <button type="button" onClick={() => setShowEmojiPicker(v => !v)}
+                          className="w-10 h-10 border-2 border-amber-200 bg-white rounded-xl text-lg flex items-center justify-center hover:border-amber-400 transition-colors">
+                          {newCatEmoji}
+                        </button>
+                        {showEmojiPicker && (
+                          <div className="absolute bottom-12 left-0 bg-white border border-stone-200 rounded-xl p-2 shadow-xl z-30 grid grid-cols-8 gap-1 w-64">
+                            {EMOJI_OPTIONS.map(em => (
+                              <button key={em} type="button"
+                                onClick={() => { setNewCatEmoji(em); setShowEmojiPicker(false); }}
+                                className={`w-7 h-7 text-base hover:bg-stone-100 rounded-lg flex items-center justify-center ${newCatEmoji === em ? 'bg-amber-100' : ''}`}>
+                                {em}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <input type="text" placeholder="New category name…"
+                        value={newCatLabel} onChange={e => setNewCatLabel(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleAddCustomCategory()}
+                        className="flex-1 px-3 py-2 border border-amber-200 rounded-xl text-sm bg-white outline-none focus:border-amber-400" />
+                      <button type="button" onClick={handleAddCustomCategory}
+                        className="px-3 py-2 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 transition-colors flex-shrink-0">
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-xs text-stone-400 mb-3">Tick all categories this product belongs to</p>
                 <div className="grid grid-cols-3 gap-2">
-                  {CATEGORIES.map(cat => {
-                    const selected   = formData.categories.includes(cat.value);
-                    const maxReached = formData.categories.length >= 3 && !selected;
+                  {ALL_CATEGORIES.map(cat => {
+                    const selected = formData.categories.includes(cat.value);
                     return (
                       <button key={cat.value} type="button"
-                        onClick={() => !maxReached && toggleCategory(cat.value)}
-                        className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-all text-sm font-semibold ${
-                          selected     ? 'border-stone-900 bg-stone-900 text-white'
-                          : maxReached ? 'border-stone-100 bg-stone-50 text-stone-300 cursor-not-allowed'
-                                       : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-400 cursor-pointer'
+                        onClick={() => toggleCategory(cat.value)}
+                        className={`relative flex items-center gap-2 p-3 rounded-xl border text-left transition-all ${
+                          selected
+                            ? 'border-stone-900 bg-stone-900 text-white'
+                            : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-400 cursor-pointer'
                         }`}>
                         <span className="text-lg">{cat.emoji}</span>
-                        <span className="leading-tight text-xs">{cat.label}</span>
-                        {selected && <span className="ml-auto text-white text-xs">✓</span>}
+                        <span className="leading-tight text-xs font-semibold flex-1">{cat.label}</span>
+                        {selected && <span className="text-white text-xs">✓</span>}
+                        {cat.custom && !selected && (
+                          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-400" title="Custom category" />
+                        )}
                       </button>
                     );
                   })}
@@ -500,7 +670,7 @@ function AdminProductsPage() {
                 )}
               </section>
 
-              {/* Photos */}
+              {/* ── Photos ── */}
               <section>
                 <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4 pb-2 border-b border-stone-100">
                   Product Photos ({imagePreviews.length}/5)
@@ -526,7 +696,7 @@ function AdminProductsPage() {
                 <p className="text-xs text-stone-400">First photo = main image. Up to 5 photos.</p>
               </section>
 
-              {/* Colors */}
+              {/* ── Colours ── */}
               <section>
                 <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4 pb-2 border-b border-stone-100">Available Colours</p>
                 <div className="grid grid-cols-8 gap-2">
