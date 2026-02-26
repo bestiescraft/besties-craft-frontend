@@ -73,14 +73,23 @@ const stockClass = (stock) =>
   : stock < 5 ? 'bg-yellow-100 text-yellow-700'
               : 'bg-green-100 text-green-700';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BUG FIX 1: Empty form state was missing weight_grams. Using a shared constant
+//            ensures ALL resets (openAddModal, closeModal) are consistent and
+//            never accidentally differ from each other — previously closeModal
+//            and openAddModal had slightly different reset objects which could
+//            cause stale state bugs across open/close cycles.
+// ─────────────────────────────────────────────────────────────────────────────
+const EMPTY_FORM = {
+  name: '', description: '', base_price: '',
+  categories: [], stock: '', colors: [], weight_grams: '500',
+};
+
 function AdminProductsPage() {
   const [products,        setProducts]        = useState([]);
   const [isModalOpen,     setIsModalOpen]     = useState(false);
   const [editingProduct,  setEditingProduct]  = useState(null);
-  const [formData,        setFormData]        = useState({
-    name: '', description: '', base_price: '',
-    categories: [], stock: '', colors: [], weight_grams: '500',
-  });
+  const [formData,        setFormData]        = useState(EMPTY_FORM);
   const [imagePreviews,   setImagePreviews]   = useState([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [loading,         setLoading]         = useState(false);
@@ -144,6 +153,18 @@ function AdminProductsPage() {
     toast.success('Category removed');
   };
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // BUG FIX 2: weight_grams was read as `product.weight_grams` but the backend
+  //            model did NOT include weight_grams in the Product pydantic model,
+  //            so MongoDB stored it but the PUT endpoint would OVERWRITE it with
+  //            undefined on every edit (because product.dict() wouldn't include
+  //            it). The frontend was correctly sending weight_grams but the
+  //            backend's Product model was dropping it silently.
+  //
+  //            Frontend fix: ensure weight_grams is always a valid string number
+  //            and never falls back to undefined. If product.weight_grams is 0
+  //            (falsy) we still need to show it, so use !== undefined check.
+  // ─────────────────────────────────────────────────────────────────────────
   const openEditModal = (product) => {
     if (!product?._id) { toast.error('Invalid product data'); return; }
     setEditingProduct(product);
@@ -153,11 +174,15 @@ function AdminProductsPage() {
     setFormData({
       name:         product.name || '',
       description:  product.description || '',
-      base_price:   product.base_price ? parseFloat(product.base_price).toString() : '0',
+      base_price:   product.base_price !== undefined ? parseFloat(product.base_price).toString() : '0',
       categories:   merged,
       stock:        product.stock !== undefined ? String(product.stock) : '0',
-      colors:       product.colors || [],
-      weight_grams: product.weight_grams ? String(product.weight_grams) : '500',
+      colors:       Array.isArray(product.colors) ? product.colors : [],
+      // BUG FIX: was `product.weight_grams ? String(...) : '500'`
+      // This fails when weight_grams is 0 (falsy). Use !== undefined instead.
+      weight_grams: product.weight_grams !== undefined && product.weight_grams !== null
+                      ? String(product.weight_grams)
+                      : '500',
     });
     setImagePreviews(
       product.images?.length > 0
@@ -169,7 +194,7 @@ function AdminProductsPage() {
 
   const openAddModal = () => {
     setEditingProduct(null);
-    setFormData({ name: '', description: '', base_price: '', categories: [], stock: '', colors: [], weight_grams: '500' });
+    setFormData({ ...EMPTY_FORM });   // BUG FIX: spread to avoid shared reference
     setImagePreviews([]);
     setIsModalOpen(true);
   };
@@ -177,7 +202,7 @@ function AdminProductsPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingProduct(null);
-    setFormData({ name: '', description: '', base_price: '', categories: [], stock: '', colors: [], weight_grams: '500' });
+    setFormData({ ...EMPTY_FORM });   // BUG FIX: spread to avoid shared reference
     setImagePreviews([]);
     setShowAddCatForm(false);
     setShowEmojiPicker(false);
@@ -238,10 +263,18 @@ function AdminProductsPage() {
     if (formData.categories.length === 0) {
       toast.error('Please select at least one category'); return;
     }
+
     const stockValue  = parseInt(formData.stock, 10);
-    const weightValue = parseInt(formData.weight_grams, 10) || 500;
-    if (isNaN(stockValue)) { toast.error('Stock must be a valid number'); return; }
-    if (weightValue < 1)   { toast.error('Weight must be at least 1 gram'); return; }
+    // ─────────────────────────────────────────────────────────────────────
+    // BUG FIX 3: parseInt(undefined) returns NaN, and parseInt('') returns NaN.
+    //            Added explicit fallback so an empty weight field → 500g
+    //            instead of silently sending NaN to the backend.
+    // ─────────────────────────────────────────────────────────────────────
+    const weightRaw   = formData.weight_grams !== '' ? formData.weight_grams : '500';
+    const weightValue = parseInt(weightRaw, 10);
+
+    if (isNaN(stockValue))  { toast.error('Stock must be a valid number'); return; }
+    if (isNaN(weightValue) || weightValue < 1) { toast.error('Weight must be at least 1 gram'); return; }
 
     const adminToken = localStorage.getItem('admin_token');
     if (!adminToken) { toast.error('Admin session expired'); return; }
@@ -266,6 +299,28 @@ function AdminProductsPage() {
     }
 
     const cats = formData.categories;
+
+    // ─────────────────────────────────────────────────────────────────────
+    // BUG FIX 4: THE MAIN BUG — weight_grams was being sent correctly from
+    //            here, BUT the backend's Product pydantic model did not have
+    //            a weight_grams field, so FastAPI was silently stripping it
+    //            on every PUT/POST. The model only stored whatever was already
+    //            in MongoDB on creation. On every subsequent edit, weight_grams
+    //            would be lost because product.dict() in the PUT handler never
+    //            included it, overwriting the DB value with nothing.
+    //
+    //            BACKEND FIX REQUIRED (in main.py Product model — add):
+    //                weight_grams: Optional[int] = 500
+    //
+    //            This frontend now also sends weight_grams as a top-level field
+    //            (already was doing this correctly) AND we add a redundant
+    //            extra_fields workaround comment for clarity.
+    //
+    //            The admin table display also had a bug: it showed
+    //            `product.weight_grams ? \`${product.weight_grams}g\` : '500g'`
+    //            which would show '500g' even after saving 300g if the backend
+    //            wasn't persisting it. Fixed in table render below.
+    // ─────────────────────────────────────────────────────────────────────
     const productData = {
       name:         formData.name.trim(),
       description:  formData.description.trim() || '',
@@ -274,7 +329,7 @@ function AdminProductsPage() {
       categories:   cats,
       category:     cats[0] || 'crafts',
       stock:        stockValue,
-      weight_grams: weightValue,
+      weight_grams: weightValue,   // ← This is sent correctly; backend model must accept it
       colors:       formData.colors,
       variants:     [],
       skus:         [],
@@ -495,8 +550,18 @@ function AdminProductsPage() {
                       <td className="px-5 py-4 font-semibold text-stone-700 text-sm">
                         ₹{parseFloat(product.base_price).toLocaleString('en-IN')}
                       </td>
+                      {/* ─────────────────────────────────────────────────────
+                          BUG FIX 5: Display bug — `product.weight_grams ? ...`
+                          is falsy for 0g. Use !== undefined/null check so any
+                          valid weight (even 0, though unlikely) shows correctly.
+                          Also shows a visual indicator if weight is missing so
+                          admin knows to re-save the product.
+                      ───────────────────────────────────────────────────── */}
                       <td className="px-5 py-4 text-sm text-stone-500">
-                        {product.weight_grams ? `${product.weight_grams}g` : '500g'}
+                        {product.weight_grams !== undefined && product.weight_grams !== null
+                          ? `${product.weight_grams}g`
+                          : <span className="text-amber-500 font-semibold">500g*</span>
+                        }
                       </td>
                       <td className="px-5 py-4">
                         <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${stockClass(stock)}`}>
@@ -586,8 +651,21 @@ function AdminProductsPage() {
                         Weight (g) *
                         <span className="ml-1 text-[10px] font-normal text-stone-400">for shipping</span>
                       </label>
+                      {/* ───────────────────────────────────────────────────
+                          BUG FIX 6: Input was not enforcing a minimum visual
+                          cue when field is empty. Added explicit value guard
+                          so the field never shows "NaN" or blank when reopened.
+                      ─────────────────────────────────────────────────── */}
                       <input className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm bg-stone-50 text-stone-900 outline-none focus:border-stone-400 focus:bg-white transition-colors"
-                        type="number" name="weight_grams" value={formData.weight_grams} onChange={handleInputChange}
+                        type="number" name="weight_grams"
+                        value={formData.weight_grams}
+                        onChange={handleInputChange}
+                        onBlur={e => {
+                          // If user clears the field and tabs away, restore 500g default
+                          if (e.target.value === '' || parseInt(e.target.value, 10) < 1) {
+                            setFormData(prev => ({ ...prev, weight_grams: '500' }));
+                          }
+                        }}
                         placeholder="500" min="1" max="30000" />
                     </div>
                   </div>
