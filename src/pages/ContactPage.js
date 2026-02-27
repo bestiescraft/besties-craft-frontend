@@ -3,10 +3,18 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Mail, Phone, Clock, Send, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import usePageMeta from '@/hooks/usePageMeta'; // ← NEW
 
 const WHATSAPP_NUMBER = '918810776486'; // +91 8810776486
 
 const ContactPage = () => {
+  // ── NEW: SEO meta tags ──
+  usePageMeta({
+    title: 'Contact Us — Besties Craft | Handmade Crochet Products India',
+    description: 'Get in touch with Besties Craft. WhatsApp, call or email us for custom crochet orders, queries or just a hello! We reply within 24 hours.',
+    url: '/contact',
+  });
+
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '' });
   const [loading, setLoading] = useState(false);
 
