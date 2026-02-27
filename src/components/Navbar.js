@@ -68,9 +68,10 @@ const Navbar = () => {
   const isActive = (path) => location.pathname === path;
 
   const navLinks = [
-    { to: '/products', label: 'Shop' },
-    { to: '/about',    label: 'About' },
-    { to: '/contact',  label: 'Contact' },
+    { to: '/products',    label: 'Shop' },
+    { to: '/about',       label: 'About' },
+    { to: '/contact',     label: 'Contact' },
+    { to: '/track-order', label: 'Track Order' }, // ← NEW
     ...(user ? [{ to: '/orders', label: 'My Orders' }] : []),
   ];
 
