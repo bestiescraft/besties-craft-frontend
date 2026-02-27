@@ -4,45 +4,70 @@ import { ShoppingCart, User, Menu, X, LogOut } from 'lucide-react';
 import { useApp } from '@/App';
 import { CartSidebar } from '@/components/CartSidebar';
 
-/* ── Logo — dark circle stamp matching pic 1 design, with BC monogram ── */
+/* ── Logo — Badge stamp matching pic 2 design ── */
 const LogoB = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 310 72" height="56" style={{ display: 'block' }}>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 76" height="64" style={{ display: 'block' }}>
     <defs>
-      <radialGradient id="monoBg" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stopColor="#2c1810"/>
-        <stop offset="100%" stopColor="#1a0a04"/>
+      <radialGradient id="badgeBg" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stopColor="#3d1e0e"/>
+        <stop offset="100%" stopColor="#1a0804"/>
       </radialGradient>
     </defs>
 
-    {/* ── Dark circle — same as pic 1 ── */}
-    <circle cx="36" cy="36" r="34" fill="url(#monoBg)"/>
-    {/* Primary terracotta ring */}
-    <circle cx="36" cy="36" r="30" fill="none" stroke="#c2602a" strokeWidth="1.6"/>
-    {/* Inner faint dashed accent ring */}
-    <circle cx="36" cy="36" r="23" fill="none" stroke="#c2602a" strokeWidth="0.7" strokeDasharray="2,3.5" opacity="0.4"/>
-    {/* BC monogram — italic gold, centered */}
-    <text x="36" y="46" textAnchor="middle"
+    {/* ── Outer terracotta border ring ── */}
+    <circle cx="38" cy="38" r="36" fill="#b85520"/>
+    {/* ── Main dark badge fill ── */}
+    <circle cx="38" cy="38" r="33" fill="url(#badgeBg)"/>
+    {/* ── Outer thin ring ── */}
+    <circle cx="38" cy="38" r="31.5" fill="none" stroke="#c2602a" strokeWidth="0.7" opacity="0.6"/>
+    {/* ── Inner dashed ring ── */}
+    <circle cx="38" cy="38" r="28" fill="none" stroke="#c2602a" strokeWidth="0.9" strokeDasharray="2.2,3.2" opacity="0.65"/>
+
+    {/* ── HANDMADE curved top text ── */}
+    <path id="topCurve" d="M 13,30 A 26,26 0 0,1 63,30" fill="none"/>
+    <text fontSize="5.5" fontFamily="Georgia, serif" fontWeight="700" fill="#e8a87c" letterSpacing="2.5">
+      <textPath href="#topCurve" startOffset="10%">HANDMADE</textPath>
+    </text>
+    {/* ── Sparkle diamonds ── */}
+    <text x="15" y="27" fontSize="5" fill="#e8a87c" opacity="0.8">✦</text>
+    <text x="55" y="27" fontSize="5" fill="#e8a87c" opacity="0.8">✦</text>
+
+    {/* ── Top separator line ── */}
+    <line x1="16" y1="31" x2="60" y2="31" stroke="#c2602a" strokeWidth="0.6" opacity="0.45"/>
+
+    {/* ── Besties (cream/white, bold serif) ── */}
+    <text x="38" y="45" textAnchor="middle"
       fontFamily="Georgia, 'Times New Roman', serif"
-      fontSize="19" fontStyle="italic" fontWeight="bold"
-      fill="#e8a87c" letterSpacing="1.5">BC</text>
+      fontSize="14.5" fontWeight="700"
+      fill="#f5ead8" letterSpacing="0.4">Besties</text>
+
+    {/* ── Craft (terracotta italic) ── */}
+    <text x="38" y="57" textAnchor="middle"
+      fontFamily="Georgia, 'Times New Roman', serif"
+      fontSize="12.5" fontStyle="italic" fontWeight="700"
+      fill="#c2602a" letterSpacing="0.4">Craft</text>
+
+    {/* ── Bottom separator line ── */}
+    <line x1="16" y1="60" x2="60" y2="60" stroke="#c2602a" strokeWidth="0.6" opacity="0.45"/>
+
+    {/* ── INDIA · SINCE 2025 curved bottom text ── */}
+    <path id="botCurve" d="M 13,48 A 26,26 0 0,0 63,48" fill="none"/>
+    <text fontSize="5" fontFamily="Georgia, serif" fontWeight="600" fill="#e8a87c" letterSpacing="1.8">
+      <textPath href="#botCurve" startOffset="8%">INDIA · SINCE 2025</textPath>
+    </text>
 
     {/* ── Vertical divider ── */}
-    <line x1="82" y1="14" x2="82" y2="58" stroke="#c2602a" strokeWidth="0.8" opacity="0.35"/>
+    <line x1="88" y1="14" x2="88" y2="62" stroke="#c2602a" strokeWidth="0.8" opacity="0.35"/>
 
     {/* ── Wordmark right side ── */}
-    {/* Tag above */}
-    <text x="94" y="24" fontFamily="Georgia, serif" fontSize="6.5"
+    <text x="100" y="25" fontFamily="Georgia, serif" fontSize="6.5"
       fill="#c2602a" letterSpacing="2.8" opacity="0.85">✦ ARTISAN COLLECTION</text>
-    {/* Besties */}
-    <text x="94" y="50" fontFamily="Georgia, 'Times New Roman', serif" fontSize="27"
+    <text x="100" y="52" fontFamily="Georgia, 'Times New Roman', serif" fontSize="28"
       fontWeight="bold" fill="#2c1810" letterSpacing="0.5">Besties </text>
-    {/* Craft italic terracotta */}
-    <text x="205" y="50" fontFamily="Georgia, 'Times New Roman', serif" fontSize="27"
+    <text x="215" y="52" fontFamily="Georgia, 'Times New Roman', serif" fontSize="28"
       fontStyle="italic" fontWeight="bold" fill="#c2602a" letterSpacing="0.5">Craft</text>
-    {/* Underline */}
-    <rect x="94" y="55" width="186" height="1.2" fill="#c2602a" rx="0.5" opacity="0.4"/>
-    {/* Tagline */}
-    <text x="94" y="65" fontFamily="Georgia, serif" fontSize="6"
+    <rect x="100" y="57" width="190" height="1.2" fill="#c2602a" rx="0.5" opacity="0.4"/>
+    <text x="100" y="68" fontFamily="Georgia, serif" fontSize="6"
       fill="#9a8070" letterSpacing="2.2">HANDCRAFTED IN INDIA</text>
   </svg>
 );
@@ -71,7 +96,7 @@ const Navbar = () => {
     { to: '/products',    label: 'Shop' },
     { to: '/about',       label: 'About' },
     { to: '/contact',     label: 'Contact' },
-    { to: '/track-order', label: 'Track Order' }, // ← NEW
+    { to: '/track-order', label: 'Track Order' },
     ...(user ? [{ to: '/orders', label: 'My Orders' }] : []),
   ];
 
@@ -88,7 +113,6 @@ const Navbar = () => {
         }
         .nb-root.scrolled { box-shadow:0 4px 28px rgba(44,24,16,0.1); }
 
-        /* ── Desktop navbar: taller, more premium ── */
         .nb-inner {
           max-width:1180px; margin:0 auto; padding:0 2rem;
           display:flex; align-items:center; justify-content:space-between;
