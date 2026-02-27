@@ -1,138 +1,228 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#000000" />
-        <meta name="description" content="Besties Craft - Handmade Woollen Crochet Products" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
-        <!--
-        manifest.json provides metadata used when your web app is installed on a
-        user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-        -->
-        <!--
-        Notice the use of %PUBLIC_URL% in the tags above.
-        It will be replaced with the URL of the `public` folder during the build.
-        Only files inside the `public` folder can be referenced from the HTML.
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-        work correctly both with client-side routing and a non-root public URL.
-        Learn how to configure a non-root public URL by running `npm run build`.
-        -->
-        <title>Besties Craft - Handmade Woollen Crochet Products</title>
-        <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
-        <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
-        <!--
-        These two scripts have been added for the Visual Edits, please do not edit or remove them
-        -->
-        <script>
-            // Only load visual edit scripts when inside an iframe
-            if (window.self !== window.top) {
-                // Load debug monitor script
-                var debugMonitorScript = document.createElement('script');
-                debugMonitorScript.src = 'https://assets.emergent.sh/scripts/debug-monitor.js';
-                document.head.appendChild(debugMonitorScript);
+    <!-- ═══════════════════════════════════════════════════════
+         PRIMARY SEO META TAGS
+    ════════════════════════════════════════════════════════ -->
+    <title>Besties Craft — Handmade Crochet &amp; Woollen Products India</title>
+    <meta name="description" content="Shop beautiful handmade crochet bracelets, woollen flowers, keychains, hair accessories and gifting items. 100% handmade with love in India. Customisable orders, pan-India delivery." />
+    <meta name="keywords" content="handmade crochet products India, woollen bracelets, crochet keychains, handmade hair accessories, crochet gifting items, woollen flowers, handmade gifts India, Besties Craft, custom crochet, handmade jewellery India" />
+    <meta name="author" content="Besties Craft" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://www.bestiescraft.in/" />
 
-                // Configure Tailwind
-                window.tailwind = window.tailwind || {};
-                tailwind.config = {
-                    corePlugins: { preflight: false },
-                };
+    <!-- Brand theme colour (terracotta) -->
+    <meta name="theme-color" content="#c2602a" />
 
-                // Load Tailwind CDN
-                var tailwindScript = document.createElement('script');
-                tailwindScript.src = 'https://cdn.tailwindcss.com';
-                document.head.appendChild(tailwindScript);
+    <!-- ═══════════════════════════════════════════════════════
+         OPEN GRAPH — Facebook, WhatsApp, LinkedIn sharing
+    ════════════════════════════════════════════════════════ -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:url"         content="https://www.bestiescraft.in/" />
+    <meta property="og:site_name"   content="Besties Craft" />
+    <meta property="og:title"       content="Besties Craft — Handmade Crochet &amp; Woollen Products India" />
+    <meta property="og:description" content="Shop beautiful handmade crochet bracelets, woollen flowers, keychains, hair accessories and gifting items. 100% handmade with love in India. Customisable orders, pan-India delivery." />
+    <meta property="og:image"       content="https://www.bestiescraft.in/og-image.jpg" />
+    <meta property="og:image:width"  content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt"    content="Besties Craft — Handmade Crochet Products" />
+    <meta property="og:locale"       content="en_IN" />
+
+    <!-- ═══════════════════════════════════════════════════════
+         TWITTER / X CARD
+    ════════════════════════════════════════════════════════ -->
+    <meta name="twitter:card"        content="summary_large_image" />
+    <meta name="twitter:title"       content="Besties Craft — Handmade Crochet &amp; Woollen Products India" />
+    <meta name="twitter:description" content="Shop beautiful handmade crochet bracelets, woollen flowers, keychains, hair accessories and gifting items. 100% handmade with love in India." />
+    <meta name="twitter:image"       content="https://www.bestiescraft.in/og-image.jpg" />
+
+    <!-- ═══════════════════════════════════════════════════════
+         JSON-LD STRUCTURED DATA — helps Google understand site
+    ════════════════════════════════════════════════════════ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://www.bestiescraft.in/#organization",
+          "name": "Besties Craft",
+          "url": "https://www.bestiescraft.in",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://www.bestiescraft.in/logo192.png"
+          },
+          "description": "Handmade crochet and woollen products crafted with love in India",
+          "foundingLocation": "Varanasi, India",
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "telephone": "+91-8810776486",
+            "contactType": "customer service",
+            "availableLanguage": ["English", "Hindi"],
+            "contactOption": "TollFree"
+          },
+          "sameAs": []
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://www.bestiescraft.in/#website",
+          "url": "https://www.bestiescraft.in",
+          "name": "Besties Craft",
+          "publisher": { "@id": "https://www.bestiescraft.in/#organization" },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://www.bestiescraft.in/products?search={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "Store",
+          "@id": "https://www.bestiescraft.in/#store",
+          "name": "Besties Craft",
+          "url": "https://www.bestiescraft.in",
+          "image": "https://www.bestiescraft.in/og-image.jpg",
+          "description": "Handmade crochet bracelets, woollen flowers, keychains, hair accessories and gifting items. 100% handmade, customisable, pan-India delivery.",
+          "priceRange": "₹₹",
+          "currenciesAccepted": "INR",
+          "paymentAccepted": "Credit Card, Debit Card, UPI, Net Banking",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Varanasi",
+            "addressRegion": "Uttar Pradesh",
+            "postalCode": "221007",
+            "addressCountry": "IN"
+          },
+          "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": "25.3176",
+            "longitude": "82.9739"
+          },
+          "openingHoursSpecification": {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+            "opens": "10:00",
+            "closes": "20:00"
+          },
+          "telephone": "+91-8810776486",
+          "email": "bestiescraft1434@gmail.com"
+        }
+      ]
+    }
+    </script>
+
+    <!-- ═══════════════════════════════════════════════════════
+         GOOGLE ANALYTICS 4 — G-V11BP6HW0W
+    ════════════════════════════════════════════════════════ -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-V11BP6HW0W"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-V11BP6HW0W', {
+        page_path: window.location.pathname,
+        send_page_view: true
+      });
+    </script>
+
+    <!-- ═══════════════════════════════════════════════════════
+         PERFORMANCE — Preconnect to speed up resource loading
+    ════════════════════════════════════════════════════════ -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://res.cloudinary.com" />
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+    <link rel="dns-prefetch" href="https://besties-craft-backend-1.onrender.com" />
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+
+    <!-- ═══════════════════════════════════════════════════════
+         ERROR SUPPRESSION (keep as-is — needed for Render/Vercel)
+    ════════════════════════════════════════════════════════ -->
+    <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
+
+    <!-- ═══════════════════════════════════════════════════════
+         VISUAL EDITOR SUPPORT (keep as-is — emergent.sh)
+    ════════════════════════════════════════════════════════ -->
+    <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
+    <script>
+      if (window.self !== window.top) {
+        var debugMonitorScript = document.createElement('script');
+        debugMonitorScript.src = 'https://assets.emergent.sh/scripts/debug-monitor.js';
+        document.head.appendChild(debugMonitorScript);
+        window.tailwind = window.tailwind || {};
+        tailwind.config = { corePlugins: { preflight: false } };
+        var tailwindScript = document.createElement('script');
+        tailwindScript.src = 'https://cdn.tailwindcss.com';
+        document.head.appendChild(tailwindScript);
+      }
+    </script>
+  </head>
+
+  <body>
+    <noscript>
+      <p>You need to enable JavaScript to run this app.</p>
+      <p>Shop handmade crochet products at <a href="https://www.bestiescraft.in">Besties Craft</a> — contact us on WhatsApp: <a href="https://wa.me/918810776486">+91 8810776486</a></p>
+    </noscript>
+    <div id="root"></div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         POSTHOG ANALYTICS (keep as-is — already configured)
+    ════════════════════════════════════════════════════════ -->
+    <script>
+      !(function (t, e) {
+        var o, n, p, r;
+        e.__SV ||
+          ((window.posthog = e),
+          (e._i = []),
+          (e.init = function (i, s, a) {
+            function g(t, e) {
+              var o = e.split(".");
+              2 == o.length && ((t = t[o[0]]), (e = o[1])),
+                (t[e] = function () {
+                  t.push([e].concat(Array.prototype.slice.call(arguments, 0)));
+                });
             }
-        </script>
-    </head>
-    <body>
-        <noscript>You need to enable JavaScript to run this app.</noscript>
-        <div id="root"></div>
-        <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
-        <!-- REMOVED: Emergent Badge - No longer needed -->
-        
-        <script>
-            !(function (t, e) {
-                var o, n, p, r;
-                e.__SV ||
-                    ((window.posthog = e),
-                    (e._i = []),
-                    (e.init = function (i, s, a) {
-                        function g(t, e) {
-                            var o = e.split(".");
-                            2 == o.length && ((t = t[o[0]]), (e = o[1])),
-                                (t[e] = function () {
-                                    t.push(
-                                        [e].concat(
-                                            Array.prototype.slice.call(
-                                                arguments,
-                                                0,
-                                            ),
-                                        ),
-                                    );
-                                });
-                        }
-                        ((p = t.createElement("script")).type =
-                            "text/javascript"),
-                            (p.crossOrigin = "anonymous"),
-                            (p.async = !0),
-                            (p.src =
-                                s.api_host.replace(
-                                    ".i.posthog.com",
-                                    "-assets.i.posthog.com",
-                                ) + "/static/array.js"),
-                            (r =
-                                t.getElementsByTagName(
-                                    "script",
-                                )[0]).parentNode.insertBefore(p, r);
-                        var u = e;
-                        for (
-                            void 0 !== a ? (u = e[a] = []) : (a = "posthog"),
-                                u.people = u.people || [],
-                                u.toString = function (t) {
-                                    var e = "posthog";
-                                    return (
-                                        "posthog" !== a && (e += "." + a),
-                                        t || (e += " (stub)"),
-                                        e
-                                    );
-                                },
-                                u.people.toString = function () {
-                                    return u.toString(1) + ".people (stub)";
-                                },
-                                o =
-                                    "init me ws ys ps bs capture je Di ks register register_once register_for_session unregister unregister_for_session Ps getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey canRenderSurveyAsync identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty Es $s createPersonProfile Is opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing Ss debug xs getPageViewId captureTraceFeedback captureTraceMetric".split(
-                                        " ",
-                                    ),
-                                n = 0;
-                            n < o.length;
-                            n++
-                        )
-                            g(u, o[n]);
-                        e._i.push([i, s, a]);
-                    }),
-                    (e.__SV = 1));
-            })(document, window.posthog || []);
-            posthog.init("phc_xAvL2Iq4tFmANRE7kzbKwaSqp1HJjN7x48s3vr0CMjs", {
-                api_host: "https://us.i.posthog.com",
-                person_profiles: "identified_only", // or 'always' to create profiles for anonymous users as well,
-                session_recording: {
-                    recordCrossOriginIframes: true,
-                    capturePerformance: false,
+            ((p = t.createElement("script")).type = "text/javascript"),
+              (p.crossOrigin = "anonymous"),
+              (p.async = !0),
+              (p.src =
+                s.api_host.replace(".i.posthog.com", "-assets.i.posthog.com") +
+                "/static/array.js"),
+              (r = t.getElementsByTagName("script")[0]).parentNode.insertBefore(p, r);
+            var u = e;
+            for (
+              void 0 !== a ? (u = e[a] = []) : (a = "posthog"),
+                u.people = u.people || [],
+                u.toString = function (t) {
+                  var e = "posthog";
+                  return "posthog" !== a && (e += "." + a), t || (e += " (stub)"), e;
                 },
-            });
-        </script>
-    </body>
+                u.people.toString = function () { return u.toString(1) + ".people (stub)"; },
+                o = "init me ws ys ps bs capture je Di ks register register_once register_for_session unregister unregister_for_session Ps getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey canRenderSurveyAsync identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty Es $s createPersonProfile Is opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing Ss debug xs getPageViewId captureTraceFeedback captureTraceMetric".split(" "),
+                n = 0;
+              n < o.length;
+              n++
+            )
+              g(u, o[n]);
+            e._i.push([i, s, a]);
+          }),
+          (e.__SV = 1));
+      })(document, window.posthog || []);
+      posthog.init("phc_xAvL2Iq4tFmANRE7kzbKwaSqp1HJjN7x48s3vr0CMjs", {
+        api_host: "https://us.i.posthog.com",
+        person_profiles: "identified_only",
+        session_recording: {
+          recordCrossOriginIframes: true,
+          capturePerformance: false,
+        },
+      });
+    </script>
+  </body>
 </html>
