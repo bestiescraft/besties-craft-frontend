@@ -23,6 +23,10 @@ import AdminProductsPage     from '@/pages/AdminProductsPage';
 import AdminOrdersPage       from '@/pages/AdminOrdersPage';
 import AdminCustomersPage    from '@/pages/AdminCustomersPage';
 
+// ── NEW: Order Tracking + WhatsApp ──
+import OrderTrackingPage from '@/pages/OrderTrackingPage';
+import WhatsAppButton    from '@/components/WhatsAppButton';
+
 export const AppContext = createContext();
 export const useApp = () => useContext(AppContext);
 
@@ -86,12 +90,19 @@ function App() {
             <Route path="/login"                       element={<LoginPage />} />
             <Route path="/about"                       element={<AboutPage />} />
             <Route path="/contact"                     element={<ContactPage />} />
+            {/* ── NEW: Order Tracking ── */}
+            <Route path="/track-order"                 element={<OrderTrackingPage />} />
+            <Route path="/track-order/:orderId"        element={<OrderTrackingPage />} />
+            {/* ── Admin ── */}
             <Route path="/admin/login"                 element={<AdminLoginPage />} />
             <Route path="/admin/dashboard"  element={isAdmin ? <AdminDashboardPage />  : <Navigate to="/admin/login" />} />
             <Route path="/admin/products"   element={isAdmin ? <AdminProductsPage />   : <Navigate to="/admin/login" />} />
             <Route path="/admin/orders"     element={isAdmin ? <AdminOrdersPage />     : <Navigate to="/admin/login" />} />
             <Route path="/admin/customers"  element={isAdmin ? <AdminCustomersPage />  : <Navigate to="/admin/login" />} />
           </Routes>
+
+          {/* ── NEW: WhatsApp floating button — shows on every page ── */}
+          <WhatsAppButton />
         </BrowserRouter>
         <Toaster position="top-right" richColors />
       </div>

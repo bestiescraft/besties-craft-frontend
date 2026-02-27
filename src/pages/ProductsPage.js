@@ -6,6 +6,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import axios from 'axios';
 import { toast } from 'sonner';
+import usePageMeta from '@/hooks/usePageMeta'; // ← NEW
 
 const BACKEND_URL =
   process.env.REACT_APP_BACKEND_URL?.replace(/\/$/, '') ||
@@ -68,6 +69,18 @@ export default function ProductsPage() {
   const [search,   setSearch]   = useState('');
   const [category, setCategory] = useState('');
   const [sort,     setSort]     = useState('newest');
+
+  // ── NEW: Dynamic SEO meta tags per category ──
+  const activeCatObj = CATEGORIES.find(c => c.value === category);
+  usePageMeta({
+    title: category
+      ? `${activeCatObj?.label || 'Products'} — Handmade Crochet | Besties Craft`
+      : 'Shop Handmade Crochet & Woollen Products — Besties Craft',
+    description: category
+      ? `Shop handmade crochet ${activeCatObj?.label?.toLowerCase() || 'products'} crafted with love in India. Customisable, pan-India delivery.`
+      : 'Browse our full collection of handmade crochet bracelets, woollen flowers, keychains, hair accessories and gifting items. 100% handmade, customisable, pan-India delivery.',
+    url: category ? `/products?category=${category}` : '/products',
+  });
 
   // Read category from URL on mount / navigation
   useEffect(() => {

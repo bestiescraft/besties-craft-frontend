@@ -2,8 +2,16 @@ import React from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Heart, Sparkles, Phone, Mail, Shield, Leaf, Award, Clock } from 'lucide-react';
+import usePageMeta from '@/hooks/usePageMeta'; // ← NEW
 
 const AboutPage = () => {
+  // ── NEW: SEO meta tags ──
+  usePageMeta({
+    title: 'About Us — Besties Craft | Handmade Crochet with Love in India',
+    description: 'Learn the story behind Besties Craft — handmade crochet bracelets, woollen flowers, keychains and gifting items crafted with love in India. 100% handmade, customisable.',
+    url: '/about',
+  });
+
   return (
     <>
       <style>{`
