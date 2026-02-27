@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle, Package, ArrowRight } from 'lucide-react';
+import { CheckCircle, Package, ArrowRight, MapPin } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import axios from 'axios';
+import usePageMeta from '@/hooks/usePageMeta'; // ← NEW
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL?.replace(/\/$/, '') ||
   'https://besties-craft-backend-1.onrender.com';
@@ -16,6 +17,13 @@ const OrderConfirmationPage = () => {
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // ── NEW: SEO meta tags ──
+  usePageMeta({
+    title: 'Order Confirmed — Besties Craft',
+    description: 'Your Besties Craft order has been confirmed. Thank you for shopping handmade crochet products with us!',
+    url: `/order-confirmation/${orderId}`,
+  });
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -145,7 +153,7 @@ const OrderConfirmationPage = () => {
               <div className="flex justify-between py-3 border-b border-stone-100">
                 <span className="text-stone-500">Order Status</span>
                 <span className="font-medium text-amber-700 capitalize">
-                  {order.order_status || 'pending'}
+                  {order.order_status || 'confirmed'}
                 </span>
               </div>
               <div className="flex justify-between py-3">
@@ -195,8 +203,15 @@ const OrderConfirmationPage = () => {
           </motion.div>
 
           {/* ── Actions ── */}
+          {/* ── NEW: Track Order button added ── */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button onClick={() => navigate('/orders')} className="btn-primary">
+            <Button
+              onClick={() => navigate(`/track-order/${order.id || order._id}`)}
+              className="btn-primary">
+              <MapPin className="w-5 h-5 mr-2" />
+              Track Order
+            </Button>
+            <Button onClick={() => navigate('/orders')} variant="outline">
               <Package className="w-5 h-5 mr-2" />
               View All Orders
             </Button>
