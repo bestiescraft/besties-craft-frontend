@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Minus, Plus, ArrowLeft, CheckCircle, Pencil, Star } from 'lucide-react';
+import { ShoppingCart, Minus, Plus, ArrowLeft, CheckCircle, Pencil, Star, Shield, Truck, RefreshCw } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { useApp } from '@/App';
@@ -13,7 +13,6 @@ const BACKEND_URL =
   process.env.REACT_APP_BACKEND_URL?.replace(/\/$/, '') ||
   'https://besties-craft-backend-1.onrender.com';
 
-// ── The only 6 valid categories for Besties Craft ────────────────────────────
 const VALID_CATEGORIES = [
   { value: 'bracelets',        name: 'Bracelets' },
   { value: 'handmade-flowers', name: 'Handmade Flowers' },
@@ -23,8 +22,6 @@ const VALID_CATEGORIES = [
   { value: 'crafts',           name: 'Crafts' },
 ];
 
-// Returns the correct display name if the raw backend value matches one of the
-// 6 valid categories — otherwise returns null (so nothing is shown).
 const normalizeCategory = (raw) => {
   if (!raw) return null;
   const slug = raw.toLowerCase().trim().replace(/\s+/g, '-');
@@ -33,6 +30,18 @@ const normalizeCategory = (raw) => {
   );
   return match ? match.name : null;
 };
+
+// Care instructions by category
+const CARE_INSTRUCTIONS = {
+  'bracelets':        ['Hand wash gently in cold water', 'Do not wring or twist', 'Air dry in shade', 'Keep away from moisture when not wearing', 'Store in a dry place'],
+  'handmade-flowers': ['Keep away from direct sunlight to preserve colour', 'Dust gently with a soft dry cloth', 'Do not wet or wash', 'Handle delicately to maintain shape'],
+  'keychains':        ['Wipe with a dry cloth if needed', 'Keep away from water', 'Avoid pulling or stretching', 'Store separately to prevent tangling'],
+  'hair-accessories': ['Hand wash with mild shampoo if needed', 'Air dry completely before use', 'Do not use heat styling on woollen pieces', 'Store flat to maintain shape'],
+  'gifting-items':    ['Keep away from water and moisture', 'Handle with care', 'Store in a cool, dry place', 'Best displayed away from direct sunlight'],
+  'crafts':           ['Handle gently', 'Keep away from water', 'Store in a cool, dry place', 'Avoid rough surfaces'],
+};
+
+const DEFAULT_CARE = ['Hand wash gently in cold water', 'Air dry in shade', 'Keep away from direct sunlight', 'Store in a cool, dry place'];
 
 const PRESET_COLORS = [
   { name: 'Red',      hex: '#EF4444' }, { name: 'Pink',     hex: '#EC4899' },
@@ -53,6 +62,60 @@ const fixImageUrl = (url) => {
 };
 const COLOR_MAP = PRESET_COLORS.reduce((acc, c) => { acc[c.name] = c.hex; return acc; }, {});
 
+// ── Dynamic SEO meta setter ──────────────────────────────────────────────────
+const setProductMeta = (product) => {
+  if (!product) return;
+  const title = `${product.name} — Handmade Crochet | Besties Craft`;
+  const desc  = `Buy handmade ${product.name} at ₹${product.base_price}. ${product.description?.slice(0, 120) || 'Handcrafted with love in India. Custom colours available. Pan-India delivery.'}`;
+  const image = product.images?.[0]?.url || '';
+  const url   = `https://www.bestiescraft.in/products/${product._id}`;
+
+  document.title = title;
+  const setMeta = (sel, val) => {
+    let el = document.querySelector(sel);
+    if (!el) { el = document.createElement('meta'); if (sel.includes('property=')) el.setAttribute('property', sel.match(/property="([^"]+)"/)[1]); else el.setAttribute('name', sel.match(/name="([^"]+)"/)[1]); document.head.appendChild(el); }
+    el.setAttribute('content', val);
+  };
+  setMeta('meta[name="description"]',         desc);
+  setMeta('meta[property="og:title"]',        title);
+  setMeta('meta[property="og:description"]',  desc);
+  setMeta('meta[property="og:url"]',          url);
+  if (image) { setMeta('meta[property="og:image"]', image); setMeta('meta[name="twitter:image"]', image); }
+  setMeta('meta[property="og:type"]',         'product');
+  let canonical = document.querySelector('link[rel="canonical"]');
+  if (!canonical) { canonical = document.createElement('link'); canonical.setAttribute('rel', 'canonical'); document.head.appendChild(canonical); }
+  canonical.setAttribute('href', url);
+
+  // Product structured data for Google Shopping
+  const existing = document.getElementById('product-ld-json');
+  if (existing) existing.remove();
+  const script = document.createElement('script');
+  script.id = 'product-ld-json';
+  script.type = 'application/ld+json';
+  script.textContent = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.description || '',
+    image: product.images?.map(img => img.url) || [],
+    brand: { '@type': 'Brand', name: 'Besties Craft' },
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'INR',
+      price: product.base_price,
+      availability: (product.in_stock || product.stock > 0) ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      seller: { '@type': 'Organization', name: 'Besties Craft' },
+      url,
+    },
+    aggregateRating: product.reviews_count > 0 ? {
+      '@type': 'AggregateRating',
+      ratingValue: product.rating || 0,
+      reviewCount: product.reviews_count,
+    } : undefined,
+  });
+  document.head.appendChild(script);
+};
+
 // ── Star Rating ──────────────────────────────────────────────────────────────
 const StarRating = ({ value = 0, max = 5, size = 18, interactive = false, onChange }) => {
   const [hovered, setHovered] = useState(0);
@@ -62,10 +125,8 @@ const StarRating = ({ value = 0, max = 5, size = 18, interactive = false, onChan
       {Array.from({ length: max }).map((_, i) => {
         const filled = i < Math.floor(display);
         return (
-          <span key={i}
-            onClick={() => interactive && onChange && onChange(i + 1)}
-            onMouseEnter={() => interactive && setHovered(i + 1)}
-            onMouseLeave={() => interactive && setHovered(0)}
+          <span key={i} onClick={() => interactive && onChange && onChange(i + 1)}
+            onMouseEnter={() => interactive && setHovered(i + 1)} onMouseLeave={() => interactive && setHovered(0)}
             style={{ cursor: interactive ? 'pointer' : 'default', color: filled ? '#f59e0b' : '#d1d5db', fontSize: size, lineHeight: 1, transition: 'color 0.12s' }}>
             {filled ? '★' : '☆'}
           </span>
@@ -75,7 +136,6 @@ const StarRating = ({ value = 0, max = 5, size = 18, interactive = false, onChan
   );
 };
 
-// ── Rating Bar ───────────────────────────────────────────────────────────────
 const RatingBar = ({ star, count, total }) => {
   const pct = total > 0 ? (count / total) * 100 : 0;
   return (
@@ -90,13 +150,10 @@ const RatingBar = ({ star, count, total }) => {
   );
 };
 
-// ── Review Card ──────────────────────────────────────────────────────────────
 const ReviewCard = ({ review, index }) => {
   const initial = (review.reviewer_name || review.user_email || 'A')[0].toUpperCase();
   const name    = review.reviewer_name || review.user_email?.split('@')[0] || 'Anonymous';
-  const date    = review.createdAt
-    ? new Date(review.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-    : '';
+  const date    = review.createdAt ? new Date(review.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
       style={{ background: '#fff', borderRadius: 16, border: '1px solid #f0ebe3', padding: '1.25rem 1.4rem', marginBottom: '0.85rem' }}>
@@ -109,28 +166,21 @@ const ReviewCard = ({ review, index }) => {
             <span style={{ fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#2c1810' }}>{name}</span>
             <span style={{ fontSize: '0.72rem', color: '#9a8070', fontFamily: 'sans-serif' }}>{date}</span>
           </div>
-          <div style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}>
-            <StarRating value={review.rating} size={14} />
-          </div>
-          {review.title && (
-            <p style={{ fontFamily: 'Georgia,serif', fontWeight: 600, fontSize: '0.92rem', color: '#2c1810', margin: '0 0 0.35rem' }}>{review.title}</p>
-          )}
-          {review.comment && (
-            <p style={{ fontFamily: 'sans-serif', fontSize: '0.87rem', color: '#4a3728', lineHeight: 1.65, margin: 0 }}>{review.comment}</p>
-          )}
+          <div style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}><StarRating value={review.rating} size={14} /></div>
+          {review.title && <p style={{ fontFamily: 'Georgia,serif', fontWeight: 600, fontSize: '0.92rem', color: '#2c1810', margin: '0 0 0.35rem' }}>{review.title}</p>}
+          {review.comment && <p style={{ fontFamily: 'sans-serif', fontSize: '0.87rem', color: '#4a3728', lineHeight: 1.65, margin: 0 }}>{review.comment}</p>}
         </div>
       </div>
     </motion.div>
   );
 };
 
-// ── Write Review Form ────────────────────────────────────────────────────────
 const ReviewForm = ({ productId, user, onSubmitted }) => {
-  const [rating,  setRating]  = useState(0);
-  const [title,   setTitle]   = useState('');
+  const [rating, setRating]   = useState(0);
+  const [title, setTitle]     = useState('');
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
-  const [open,    setOpen]    = useState(false);
+  const [open, setOpen]       = useState(false);
 
   const submit = async () => {
     if (!user) { toast.error('Please login to write a review'); return; }
@@ -147,19 +197,15 @@ const ReviewForm = ({ productId, user, onSubmitted }) => {
       toast.success('Review submitted! Thank you ✦');
       setRating(0); setTitle(''); setComment(''); setOpen(false);
       onSubmitted && onSubmitted();
-    } catch {
-      toast.error('Failed to submit review. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast.error('Failed to submit review. Please try again.'); }
+    finally { setLoading(false); }
   };
 
   const labelSt = { display: 'block', fontFamily: 'sans-serif', fontSize: '0.82rem', fontWeight: 700, color: '#444', marginBottom: '0.4rem' };
   const inputSt = { width: '100%', padding: '0.75rem 1rem', border: '1.5px solid #e8e4df', borderRadius: '10px', fontFamily: 'sans-serif', fontSize: '0.9rem', color: '#333', background: '#faf7f2', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s' };
 
   if (!open) return (
-    <button onClick={() => setOpen(true)}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', padding: '0.7rem 1.4rem', border: '1.5px solid #c2602a', borderRadius: '50px', background: 'transparent', color: '#c2602a', fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}>
+    <button onClick={() => setOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', padding: '0.7rem 1.4rem', border: '1.5px solid #c2602a', borderRadius: '50px', background: 'transparent', color: '#c2602a', fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}>
       ★ Write a Review
     </button>
   );
@@ -168,7 +214,6 @@ const ReviewForm = ({ productId, user, onSubmitted }) => {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       style={{ background: '#fff', borderRadius: 18, border: '1.5px solid #e8dfd0', padding: '1.75rem', marginBottom: '1.5rem' }}>
       <h3 style={{ fontFamily: 'Playfair Display,Georgia,serif', fontSize: '1.2rem', fontWeight: 700, color: '#2c1810', margin: '0 0 1.25rem' }}>Write a Review</h3>
-
       <div style={{ marginBottom: '1.1rem' }}>
         <label style={labelSt}>Your Rating *</label>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.4rem' }}>
@@ -176,26 +221,21 @@ const ReviewForm = ({ productId, user, onSubmitted }) => {
           {rating > 0 && <span style={{ fontSize: '0.82rem', color: '#9a8070', fontFamily: 'sans-serif' }}>{['','Poor','Fair','Good','Very Good','Excellent'][rating]}</span>}
         </div>
       </div>
-
       <div style={{ marginBottom: '1rem' }}>
         <label style={labelSt}>Review Title</label>
         <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Summarise your experience…" maxLength={100} style={inputSt} />
       </div>
-
       <div style={{ marginBottom: '1.25rem' }}>
         <label style={labelSt}>Your Review *</label>
         <textarea value={comment} onChange={e => setComment(e.target.value.slice(0, 1000))} placeholder="Share details about quality, colour accuracy, delivery…" maxLength={1000} rows={4}
           style={{ ...inputSt, resize: 'vertical', minHeight: 100, lineHeight: 1.6 }} />
         <div style={{ textAlign: 'right', fontSize: '0.72rem', color: '#bbb', fontFamily: 'sans-serif', marginTop: '0.25rem' }}>{comment.length} / 1000</div>
       </div>
-
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <button onClick={submit} disabled={loading}
-          style={{ padding: '0.75rem 1.75rem', background: '#2c1810', color: '#fff', border: 'none', borderRadius: '50px', fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.9rem', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+        <button onClick={submit} disabled={loading} style={{ padding: '0.75rem 1.75rem', background: '#2c1810', color: '#fff', border: 'none', borderRadius: '50px', fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.9rem', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
           {loading ? 'Submitting…' : 'Submit Review'}
         </button>
-        <button onClick={() => setOpen(false)}
-          style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1.5px solid #e8dfd0', borderRadius: '50px', fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#9a8070', cursor: 'pointer' }}>
+        <button onClick={() => setOpen(false)} style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1.5px solid #e8dfd0', borderRadius: '50px', fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#9a8070', cursor: 'pointer' }}>
           Cancel
         </button>
       </div>
@@ -203,18 +243,14 @@ const ReviewForm = ({ productId, user, onSubmitted }) => {
   );
 };
 
-// ── Reviews Section ──────────────────────────────────────────────────────────
 const ReviewsSection = ({ productId, initialReviews = [], initialRating = 0, user }) => {
   const [reviews, setReviews] = useState(initialReviews);
   const [loading, setLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
   const fetchReviews = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get(`${BACKEND_URL}/api/reviews/${productId}`);
-      setReviews(res.data.reviews || []);
-    } catch { } finally { setLoading(false); }
+    try { setLoading(true); const res = await axios.get(`${BACKEND_URL}/api/reviews/${productId}`); setReviews(res.data.reviews || []); }
+    catch { } finally { setLoading(false); }
   };
 
   const avgRating  = reviews.length > 0 ? reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length : initialRating;
@@ -225,8 +261,6 @@ const ReviewsSection = ({ productId, initialReviews = [], initialRating = 0, use
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1.5rem 5rem', boxSizing: 'border-box' }}>
       <hr style={{ border: 'none', borderTop: '1px solid #e8e4df', margin: '0 0 3rem' }} />
       <h2 style={{ fontFamily: 'Playfair Display,Georgia,serif', fontSize: '1.8rem', fontWeight: 700, color: '#1a1a1a', margin: '0 0 2rem' }}>Customer Reviews</h2>
-
-      {/* Summary */}
       <div style={{ display: 'flex', gap: '2.5rem', alignItems: 'flex-start', marginBottom: '2.5rem', flexWrap: 'wrap' }}>
         <div style={{ textAlign: 'center', padding: '1.5rem 2rem', background: '#fff', borderRadius: 18, border: '1px solid #f0ebe3', minWidth: 130 }}>
           <div style={{ fontFamily: 'Playfair Display,Georgia,serif', fontSize: '3.5rem', fontWeight: 700, color: '#2c1810', lineHeight: 1 }}>
@@ -239,13 +273,7 @@ const ReviewsSection = ({ productId, initialReviews = [], initialRating = 0, use
           {starCounts.map(({ star, count }) => <RatingBar key={star} star={star} count={count} total={reviews.length} />)}
         </div>
       </div>
-
-      {/* Write review */}
-      <div style={{ marginBottom: '2rem' }}>
-        <ReviewForm productId={productId} user={user} onSubmitted={fetchReviews} />
-      </div>
-
-      {/* Cards */}
+      <div style={{ marginBottom: '2rem' }}><ReviewForm productId={productId} user={user} onSubmitted={fetchReviews} /></div>
       {loading ? (
         <p style={{ color: '#9a8070', fontFamily: 'sans-serif', fontSize: '0.9rem' }}>Loading reviews…</p>
       ) : reviews.length === 0 ? (
@@ -260,8 +288,7 @@ const ReviewsSection = ({ productId, initialReviews = [], initialRating = 0, use
             {displayed.map((review, i) => <ReviewCard key={review._id || i} review={review} index={i} />)}
           </AnimatePresence>
           {reviews.length > 4 && (
-            <button onClick={() => setShowAll(s => !s)}
-              style={{ display: 'block', margin: '1.25rem auto 0', padding: '0.7rem 2rem', background: 'transparent', border: '1.5px solid #e8dfd0', borderRadius: '50px', fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.88rem', color: '#9a8070', cursor: 'pointer' }}>
+            <button onClick={() => setShowAll(s => !s)} style={{ display: 'block', margin: '1.25rem auto 0', padding: '0.7rem 2rem', background: 'transparent', border: '1.5px solid #e8dfd0', borderRadius: '50px', fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.88rem', color: '#9a8070', cursor: 'pointer' }}>
               {showAll ? 'Show Less' : `Show All ${reviews.length} Reviews`}
             </button>
           )}
@@ -278,23 +305,26 @@ const ProductDetailPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { cart, setCart, user } = useApp();
 
-  const [product,         setProduct]         = useState(null);
-  const [relatedProducts, setRelatedProducts]  = useState([]);
-  const [quantity,        setQuantity]         = useState(1);
-  const [loading,         setLoading]          = useState(true);
-  const [selectedImage,   setSelectedImage]    = useState(0);
-  const [customisation,   setCustomisation]    = useState('');
+  const [product,         setProduct]        = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [quantity,        setQuantity]        = useState(1);
+  const [loading,         setLoading]         = useState(true);
+  const [selectedImage,   setSelectedImage]   = useState(0);
+  const [customisation,   setCustomisation]   = useState('');
   const colorFromUrl = searchParams.get('color');
   const [selectedColor, setSelectedColor] = useState(colorFromUrl || null);
 
   useEffect(() => { if (id) fetchProduct(); }, [id]);
 
   useEffect(() => {
-    if (product?.colors?.length > 0) {
-      if (colorFromUrl && product.colors.includes(colorFromUrl)) setSelectedColor(colorFromUrl);
-      else { setSelectedColor(product.colors[0]); setSearchParams({ color: product.colors[0] }, { replace: true }); }
+    if (product) {
+      setProductMeta(product);
+      if (product.colors?.length > 0) {
+        if (colorFromUrl && product.colors.includes(colorFromUrl)) setSelectedColor(colorFromUrl);
+        else { setSelectedColor(product.colors[0]); setSearchParams({ color: product.colors[0] }, { replace: true }); }
+      }
+      if (product.category) fetchRelated(product.category, product._id);
     }
-    if (product?.category) fetchRelated(product.category, product._id);
   }, [product]);
 
   const fetchProduct = async () => {
@@ -350,9 +380,8 @@ const ProductDetailPage = () => {
   const images  = getImages();
   const inStock = (product.in_stock === true) || (product.stock !== undefined && product.stock > 0);
   const colors  = product.colors || [];
-
-  // ── Normalize category: only show if it's one of the 6 valid ones ──
   const displayCategory = normalizeCategory(product.category);
+  const careList = CARE_INSTRUCTIONS[product.category?.toLowerCase().replace(/\s+/g, '-')] || DEFAULT_CARE;
 
   return (
     <>
@@ -369,6 +398,16 @@ const ProductDetailPage = () => {
         .pdp-custom-textarea::placeholder{color:#bbb;font-size:.85rem;}
         .pdp-custom-counter{text-align:right;font-size:.72rem;color:#bbb;font-family:'Lato',sans-serif;margin-top:.3rem;}
         .pdp-custom-badge{display:inline-flex;align-items:center;gap:.3rem;background:rgba(194,96,42,.1);color:#c2602a;font-size:.7rem;font-weight:700;text-transform:uppercase;padding:.2rem .6rem;border-radius:20px;margin-left:.4rem;}
+        /* Care + Delivery info tabs */
+        .pdp-info-tabs{margin-top:2rem;border-top:1px solid #e8e4df;padding-top:1.5rem;}
+        .pdp-info-row{display:flex;flex-direction:column;gap:.6rem;}
+        .pdp-info-item{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:#faf7f2;border-radius:10px;font-family:'Lato',sans-serif;font-size:.85rem;color:#4a3728;}
+        .pdp-info-icon{color:#c2602a;flex-shrink:0;}
+        .pdp-care-section{margin-top:1.5rem;padding:1.25rem;background:#fff;border-radius:14px;border:1px solid #e8dfd0;}
+        .pdp-care-title{font-family:'Playfair Display',Georgia,serif;font-size:1rem;font-weight:700;color:#2c1810;margin:0 0 .75rem;}
+        .pdp-care-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.4rem;}
+        .pdp-care-item{font-family:'Lato',sans-serif;font-size:.82rem;color:#5c3d2e;display:flex;align-items:flex-start;gap:.5rem;line-height:1.5;}
+        .pdp-care-dot{color:#c2602a;flex-shrink:0;margin-top:2px;}
         @media(max-width:768px){
           .pdp-wrap{padding:1rem 0 3rem;} .pdp-back{margin:0 1rem 1.25rem!important;}
           .pdp-grid{grid-template-columns:1fr!important;gap:0!important;}
@@ -404,13 +443,18 @@ const ProductDetailPage = () => {
             {/* Gallery */}
             <motion.div initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} transition={{duration:.45}} className="pdp-gallery" style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
               <div className="pdp-main-img-wrap" style={st.mainImgWrap}>
-                <img src={images[selectedImage]} alt={product.name} style={st.mainImg} onError={e=>{e.target.src=PLACEHOLDER;}} />
+                <img
+                  src={images[selectedImage]}
+                  alt={`Handmade ${product.name} - ${displayCategory || 'crochet product'} by Besties Craft`}
+                  style={st.mainImg}
+                  onError={e=>{e.target.src=PLACEHOLDER;}}
+                />
               </div>
               {images.length > 1 && (
                 <div className="pdp-thumb-row" style={st.thumbRow}>
                   {images.map((img,i) => (
                     <button key={i} onClick={()=>setSelectedImage(i)} style={{...st.thumbBtn,...(selectedImage===i?st.thumbBtnActive:{})}}>
-                      <img src={img} alt={`View ${i+1}`} style={st.thumbImg} onError={e=>{e.target.src=PLACEHOLDER;}} />
+                      <img src={img} alt={`${product.name} view ${i+1}`} style={st.thumbImg} onError={e=>{e.target.src=PLACEHOLDER;}} />
                     </button>
                   ))}
                 </div>
@@ -419,15 +463,9 @@ const ProductDetailPage = () => {
 
             {/* Info */}
             <motion.div initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} transition={{duration:.45,delay:.15}} className="pdp-info-col" style={st.infoCol}>
-
-              {/* ── FIXED: only show category if it's one of the 6 valid ones ── */}
-              {displayCategory && (
-                <span style={st.categoryTag}>{displayCategory.toUpperCase()}</span>
-              )}
-
+              {displayCategory && <span style={st.categoryTag}>{displayCategory.toUpperCase()}</span>}
               <h1 className="pdp-product-name" style={st.productName}>{product.name}</h1>
 
-              {/* Inline rating */}
               {product.reviews_count > 0 && (
                 <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.85rem'}}>
                   <StarRating value={product.rating||0} size={15}/>
@@ -483,11 +521,33 @@ const ProductDetailPage = () => {
                 </>
               )}
               {!inStock&&<div style={st.outOfStockBox}><p style={{margin:0,color:'#be123c',fontWeight:600}}>This product is currently out of stock.</p></div>}
+
+              {/* Delivery & trust info */}
+              <div className="pdp-info-tabs">
+                <div className="pdp-info-row">
+                  <div className="pdp-info-item"><Truck size={16} className="pdp-info-icon" style={{color:'#c2602a'}}/> Pan-India delivery · Live rates at checkout</div>
+                  <div className="pdp-info-item"><Shield size={16} style={{color:'#c2602a'}}/> Secure payment via Razorpay (UPI, Cards, Net Banking)</div>
+                  <div className="pdp-info-item"><RefreshCw size={16} style={{color:'#c2602a'}}/> Issue with order? WhatsApp us within 48 hrs — we'll fix it</div>
+                </div>
+
+                {/* Care instructions */}
+                <div className="pdp-care-section">
+                  <h3 className="pdp-care-title">🧶 Care Instructions</h3>
+                  <ul className="pdp-care-list">
+                    {careList.map((item, i) => (
+                      <li key={i} className="pdp-care-item">
+                        <span className="pdp-care-dot">✦</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </motion.div>
           </div>
         </div>
 
-        {/* ── REVIEWS ── */}
+        {/* Reviews */}
         <ReviewsSection productId={id} initialReviews={product.reviews||[]} initialRating={product.rating||0} user={user}/>
 
         {/* Related */}
@@ -500,7 +560,7 @@ const ProductDetailPage = () => {
                 {relatedProducts.map((rp,i)=>(
                   <motion.div key={rp._id} className="pdp-related-card" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:i*.08}}
                     onClick={()=>{navigate(`/products/${rp._id}`);window.scrollTo(0,0);}}>
-                    <div className="pdp-related-img"><img src={rp.images?.[0]?.url?fixImageUrl(rp.images[0].url):PLACEHOLDER} alt={rp.name} onError={e=>{e.target.src=PLACEHOLDER;}}/></div>
+                    <div className="pdp-related-img"><img src={rp.images?.[0]?.url?fixImageUrl(rp.images[0].url):PLACEHOLDER} alt={`Handmade ${rp.name} - Besties Craft`} loading="lazy" onError={e=>{e.target.src=PLACEHOLDER;}}/></div>
                     <div className="pdp-related-body">
                       {rp.colors?.length>0&&<div className="pdp-related-colors">{rp.colors.slice(0,5).map(c=><div key={c} className="pdp-color-dot" style={{background:COLOR_MAP[c]||'#ccc'}} title={c}/>)}</div>}
                       <div className="pdp-related-name">{rp.name}</div>
@@ -519,34 +579,34 @@ const ProductDetailPage = () => {
 };
 
 const st = {
-  backBtn:          {display:'inline-flex',alignItems:'center',gap:'.4rem',background:'none',border:'none',cursor:'pointer',color:'#666',fontSize:'.9rem',fontFamily:'sans-serif',marginBottom:'2rem',padding:0},
-  mainImgWrap:      {borderRadius:'16px',overflow:'hidden',background:'#fff',border:'1px solid #e8e4df',aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center'},
-  mainImg:          {width:'100%',height:'100%',objectFit:'cover',display:'block'},
-  thumbRow:         {display:'flex',gap:'.5rem',flexWrap:'wrap'},
-  thumbBtn:         {width:68,height:68,borderRadius:'10px',overflow:'hidden',border:'2px solid #e8e4df',padding:0,cursor:'pointer',background:'#fff',flexShrink:0,transition:'border-color .15s'},
-  thumbBtnActive:   {borderColor:'#1a1a1a',boxShadow:'0 0 0 1px #1a1a1a'},
-  thumbImg:         {width:'100%',height:'100%',objectFit:'cover',display:'block'},
-  infoCol:          {display:'flex',flexDirection:'column',gap:0,paddingTop:'.5rem'},
-  categoryTag:      {fontSize:'.72rem',fontWeight:700,letterSpacing:'.1em',color:'#c2410c',fontFamily:'sans-serif',marginBottom:'.5rem',display:'block'},
-  productName:      {fontFamily:'Georgia,serif',fontSize:'2.2rem',fontWeight:700,color:'#1a1a1a',margin:'0 0 1rem',lineHeight:1.2},
-  priceRow:         {display:'flex',alignItems:'center',gap:'1rem',marginBottom:'1.25rem'},
-  price:            {fontFamily:'Georgia,serif',fontSize:'2rem',fontWeight:700,color:'#1a1a1a'},
-  inStockBadge:     {display:'inline-flex',alignItems:'center',gap:'.3rem',background:'#d1fae5',color:'#065f46',fontSize:'.78rem',fontWeight:600,padding:'.3rem .75rem',borderRadius:'20px',fontFamily:'sans-serif'},
-  outStockBadge:    {background:'#fee2e2',color:'#991b1b',fontSize:'.78rem',fontWeight:600,padding:'.3rem .75rem',borderRadius:'20px',fontFamily:'sans-serif'},
-  description:      {fontFamily:'sans-serif',fontSize:'.95rem',color:'#555',lineHeight:1.7,margin:'0 0 1.5rem'},
-  section:          {marginBottom:'1.5rem'},
-  sectionLabel:     {fontFamily:'sans-serif',fontSize:'.85rem',fontWeight:600,color:'#444',marginBottom:'.6rem'},
+  backBtn:        {display:'inline-flex',alignItems:'center',gap:'.4rem',background:'none',border:'none',cursor:'pointer',color:'#666',fontSize:'.9rem',fontFamily:'sans-serif',marginBottom:'2rem',padding:0},
+  mainImgWrap:    {borderRadius:'16px',overflow:'hidden',background:'#fff',border:'1px solid #e8e4df',aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center'},
+  mainImg:        {width:'100%',height:'100%',objectFit:'cover',display:'block'},
+  thumbRow:       {display:'flex',gap:'.5rem',flexWrap:'wrap'},
+  thumbBtn:       {width:68,height:68,borderRadius:'10px',overflow:'hidden',border:'2px solid #e8e4df',padding:0,cursor:'pointer',background:'#fff',flexShrink:0,transition:'border-color .15s'},
+  thumbBtnActive: {borderColor:'#1a1a1a',boxShadow:'0 0 0 1px #1a1a1a'},
+  thumbImg:       {width:'100%',height:'100%',objectFit:'cover',display:'block'},
+  infoCol:        {display:'flex',flexDirection:'column',gap:0,paddingTop:'.5rem'},
+  categoryTag:    {fontSize:'.72rem',fontWeight:700,letterSpacing:'.1em',color:'#c2410c',fontFamily:'sans-serif',marginBottom:'.5rem',display:'block'},
+  productName:    {fontFamily:'Georgia,serif',fontSize:'2.2rem',fontWeight:700,color:'#1a1a1a',margin:'0 0 1rem',lineHeight:1.2},
+  priceRow:       {display:'flex',alignItems:'center',gap:'1rem',marginBottom:'1.25rem'},
+  price:          {fontFamily:'Georgia,serif',fontSize:'2rem',fontWeight:700,color:'#1a1a1a'},
+  inStockBadge:   {display:'inline-flex',alignItems:'center',gap:'.3rem',background:'#d1fae5',color:'#065f46',fontSize:'.78rem',fontWeight:600,padding:'.3rem .75rem',borderRadius:'20px',fontFamily:'sans-serif'},
+  outStockBadge:  {background:'#fee2e2',color:'#991b1b',fontSize:'.78rem',fontWeight:600,padding:'.3rem .75rem',borderRadius:'20px',fontFamily:'sans-serif'},
+  description:    {fontFamily:'sans-serif',fontSize:'.95rem',color:'#555',lineHeight:1.7,margin:'0 0 1.5rem'},
+  section:        {marginBottom:'1.5rem'},
+  sectionLabel:   {fontFamily:'sans-serif',fontSize:'.85rem',fontWeight:600,color:'#444',marginBottom:'.6rem'},
   selectedColorName:{fontWeight:400,color:'#888'},
-  swatchRow:        {display:'flex',gap:'.6rem',flexWrap:'wrap'},
-  swatch:           {width:36,height:36,borderRadius:'50%',border:'2.5px solid transparent',cursor:'pointer',position:'relative',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 0 1.5px rgba(0,0,0,.12)',transition:'transform .15s,box-shadow .15s',outline:'none'},
-  swatchSelected:   {boxShadow:'0 0 0 2px #fff, 0 0 0 4px #1a1a1a',transform:'scale(1.1)'},
-  swatchCheck:      {color:'#fff',fontSize:'.8rem',fontWeight:700,textShadow:'0 1px 3px rgba(0,0,0,.5)',lineHeight:1},
-  qtyRow:           {display:'flex',alignItems:'center',gap:'1rem'},
-  qtyBtn:           {width:42,height:42,borderRadius:'50%',border:'1.5px solid #e8e4df',background:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#444',transition:'background .15s'},
-  qtyNum:           {fontFamily:'Georgia,serif',fontSize:'1.4rem',fontWeight:600,color:'#1a1a1a',minWidth:32,textAlign:'center'},
-  cartBtn:          {display:'flex',alignItems:'center',justifyContent:'center',gap:'.6rem',width:'100%',padding:'1rem',background:'#1a1a1a',color:'#fff',border:'none',borderRadius:'12px',fontSize:'1rem',fontWeight:600,fontFamily:'sans-serif',cursor:'pointer',transition:'background .2s',marginTop:'.5rem'},
-  outOfStockBox:    {background:'#fff1f2',border:'1px solid #fecdd3',borderRadius:'12px',padding:'1rem 1.25rem',marginTop:'1rem'},
-  spinner:          {width:36,height:36,border:'3px solid #e8e4df',borderTop:'3px solid #1a1a1a',borderRadius:'50%',animation:'spin 0.8s linear infinite'},
+  swatchRow:      {display:'flex',gap:'.6rem',flexWrap:'wrap'},
+  swatch:         {width:36,height:36,borderRadius:'50%',border:'2.5px solid transparent',cursor:'pointer',position:'relative',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 0 1.5px rgba(0,0,0,.12)',transition:'transform .15s,box-shadow .15s',outline:'none'},
+  swatchSelected: {boxShadow:'0 0 0 2px #fff, 0 0 0 4px #1a1a1a',transform:'scale(1.1)'},
+  swatchCheck:    {color:'#fff',fontSize:'.8rem',fontWeight:700,textShadow:'0 1px 3px rgba(0,0,0,.5)',lineHeight:1},
+  qtyRow:         {display:'flex',alignItems:'center',gap:'1rem'},
+  qtyBtn:         {width:42,height:42,borderRadius:'50%',border:'1.5px solid #e8e4df',background:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#444',transition:'background .15s'},
+  qtyNum:         {fontFamily:'Georgia,serif',fontSize:'1.4rem',fontWeight:600,color:'#1a1a1a',minWidth:32,textAlign:'center'},
+  cartBtn:        {display:'flex',alignItems:'center',justifyContent:'center',gap:'.6rem',width:'100%',padding:'1rem',background:'#1a1a1a',color:'#fff',border:'none',borderRadius:'12px',fontSize:'1rem',fontWeight:600,fontFamily:'sans-serif',cursor:'pointer',transition:'background .2s',marginTop:'.5rem'},
+  outOfStockBox:  {background:'#fff1f2',border:'1px solid #fecdd3',borderRadius:'12px',padding:'1rem 1.25rem',marginTop:'1rem'},
+  spinner:        {width:36,height:36,border:'3px solid #e8e4df',borderTop:'3px solid #1a1a1a',borderRadius:'50%',animation:'spin 0.8s linear infinite'},
 };
 
 export default ProductDetailPage;
