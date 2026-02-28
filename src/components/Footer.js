@@ -93,7 +93,6 @@ export const Footer = () => {
               { to: '/orders',      label: 'My Orders'      },
               { to: '/about',       label: 'About Us'       },
               { to: '/contact',     label: 'Contact Us'     },
-              { to: '/admin/login', label: 'Admin Login'    },
             ].map(link => (
               <li key={link.to}>
                 <Link to={link.to} style={linkStyle}
@@ -106,7 +105,7 @@ export const Footer = () => {
           </ul>
         </div>
 
-        {/* ── Policies links — NEW ── */}
+        {/* Policies links */}
         <div>
           <h4 style={headingStyle}>Policies</h4>
           <ul style={listStyle}>
@@ -129,7 +128,7 @@ export const Footer = () => {
         </div>
 
         {/* Contact info */}
-        <div>
+        <div style={{ minWidth: 200 }}>
           <h4 style={headingStyle}>Contact Us</h4>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             <li style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
@@ -151,7 +150,8 @@ export const Footer = () => {
             </li>
             <li style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
               <Mail size={14} style={{ color: '#c2602a', flexShrink: 0, marginTop: 3 }} />
-              <a href="mailto:bestiescraft1434@gmail.com" style={{ ...linkStyle, fontSize: '0.85rem', wordBreak: 'break-all' }}
+              <a href="mailto:bestiescraft1434@gmail.com"
+                style={{ ...linkStyle, fontSize: '0.85rem', wordBreak: 'break-all' }}
                 onMouseEnter={e => e.currentTarget.style.color = '#e8a87c'}
                 onMouseLeave={e => e.currentTarget.style.color = '#7a6050'}>
                 bestiescraft1434@gmail.com
