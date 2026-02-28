@@ -192,7 +192,7 @@ const Navbar = () => {
           position:fixed; top:0; left:0; bottom:0; width:min(300px,85vw);
           background:#faf7f2; z-index:300; display:flex; flex-direction:column;
           transform:translateX(-100%); transition:transform 0.32s cubic-bezier(.4,0,.2,1);
-          box-shadow:8px 0 40px rgba(44,24,16,0.15);
+          box-shadow:8px 0 40px rgba(44,24,16,0.15); overflow:hidden;
         }
         .nb-mobile-drawer.open { transform:translateX(0); }
         .nb-mobile-overlay.open { display:block; }
