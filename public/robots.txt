@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+
+# Block admin pages from Google index
+Disallow: /admin/
+Disallow: /admin/login
+Disallow: /admin/dashboard
+Disallow: /admin/products
+Disallow: /admin/orders
+Disallow: /admin/customers
+Disallow: /checkout
+Disallow: /order-confirmation/
+Disallow: /orders
+
+# Sitemap location — REPLACE with your domain after going live
+Sitemap: https://www.bestiescraft.in/sitemap.xml
+
+# Crawl-delay: be nice to server
+Crawl-delay: 1
