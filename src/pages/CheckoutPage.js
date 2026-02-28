@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, MapPin, User, Phone, Truck, Loader } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
@@ -21,7 +21,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 const PLACEHOLDER_IMG = 'https://placehold.co/64x64/e8e0d5/a09080?text=Item';
-const FALLBACK_SHIPPING = 60; // ₹60 flat if API fails
+const FALLBACK_SHIPPING = 60;
 
 const getItemImage = (item) => {
   const url = item.image || item.image_url || '';
@@ -46,8 +46,7 @@ const CheckoutPage = () => {
   const [verifying,         setVerifying]         = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
 
-  // ── Shipping rate state ──
-  const [shippingCost,    setShippingCost]    = useState(null);   // null = not fetched yet
+  const [shippingCost,    setShippingCost]    = useState(null);
   const [shippingCourier, setShippingCourier] = useState('');
   const [shippingEtd,     setShippingEtd]     = useState('');
   const [fetchingRate,    setFetchingRate]    = useState(false);
@@ -97,7 +96,6 @@ const CheckoutPage = () => {
       .finally(() => { setLoading(false); setVerifying(false); });
   }, []); // eslint-disable-line
 
-  // ── Fetch live shipping rate from Shiprocket via our backend ──
   const fetchShippingRate = useCallback(async (pincode) => {
     if (!pincode || !/^\d{6}$/.test(pincode)) {
       setShippingCost(null);
@@ -133,7 +131,6 @@ const CheckoutPage = () => {
     }
   }, [cart]);
 
-  // Auto-fetch rate when pincode becomes valid (6 digits)
   useEffect(() => {
     const pincode = shippingDetails.postalCode;
     if (/^\d{6}$/.test(pincode)) {
@@ -193,12 +190,10 @@ const CheckoutPage = () => {
       toast.error('Please fill in all required fields correctly');
       return;
     }
-    // If rate still loading, wait
     if (fetchingRate) {
       toast.info('Fetching shipping rate, please wait a moment…');
       return;
     }
-    // If no rate yet (pincode valid but fetch not done), use fallback
     if (shippingCost === null) {
       setShippingCost(FALLBACK_SHIPPING);
     }
@@ -225,7 +220,7 @@ const CheckoutPage = () => {
       const token       = localStorage.getItem('token');
       const subtotal    = cart.reduce((s, i) => s + i.price * i.quantity, 0);
       const shipping    = shippingCost ?? FALLBACK_SHIPPING;
-      const totalAmount = subtotal + shipping;   // ← includes shipping
+      const totalAmount = subtotal + shipping;
 
       const orderResponse = await axios.post(
         `${API}/orders/create`,
@@ -325,9 +320,9 @@ const CheckoutPage = () => {
     }
   };
 
-  const subtotal     = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const subtotal      = cart.reduce((s, i) => s + i.price * i.quantity, 0);
   const finalShipping = shippingCost ?? 0;
-  const total        = subtotal + finalShipping;
+  const total         = subtotal + finalShipping;
 
   if (verifying) {
     return (
@@ -463,7 +458,6 @@ const CheckoutPage = () => {
                   {shippingErrors.state && <p className="text-red-600 text-sm mt-2">{shippingErrors.state}</p>}
                 </div>
 
-                {/* ── Postal code + live rate preview ── */}
                 <div>
                   <Label htmlFor="postalCode" className="text-stone-700 font-medium mb-2">Postal Code (6-digit) *</Label>
                   <Input id="postalCode" type="tel" placeholder="Enter 6-digit postal code"
@@ -471,7 +465,6 @@ const CheckoutPage = () => {
                     maxLength={6} className="py-6 text-lg" data-testid="postal-code-input" />
                   {shippingErrors.postalCode && <p className="text-red-600 text-sm mt-2">{shippingErrors.postalCode}</p>}
 
-                  {/* Rate status pill shown below pincode */}
                   {/^\d{6}$/.test(shippingDetails.postalCode) && (
                     <div className="mt-3">
                       {fetchingRate && (
@@ -560,7 +553,6 @@ const CheckoutPage = () => {
                       <span data-testid="payment-subtotal">₹{subtotal.toLocaleString('en-IN')}</span>
                     </div>
 
-                    {/* ── Shipping row — live rate ── */}
                     <div className="flex justify-between text-stone-600">
                       <span className="flex items-center gap-1.5">
                         Shipping
@@ -576,7 +568,6 @@ const CheckoutPage = () => {
                       </span>
                     </div>
 
-                    {/* ETD if available */}
                     {shippingEtd && (
                       <p className="text-xs text-stone-500 -mt-2 flex items-center gap-1">
                         <Truck size={11} /> Est. delivery: {shippingEtd}
@@ -592,16 +583,31 @@ const CheckoutPage = () => {
                     </div>
                   </div>
 
+                  {/* ── Pay button ── */}
                   <Button onClick={handlePayment} disabled={processingPayment || cart.length === 0}
                     className="btn-primary w-full py-6 text-lg" data-testid="pay-now-button">
                     <Lock className="w-5 h-5 mr-2" />
                     {processingPayment ? 'Processing…' : `Pay ₹${total.toLocaleString('en-IN')}`}
                   </Button>
-                  <p className="text-center text-sm text-stone-600 mt-4">🔒 Secured by Razorpay</p>
+
+                  {/* ── T&C consent ── */}
+                  <p style={{ textAlign: 'center', fontSize: '0.73rem', color: '#9a8070', marginTop: '0.85rem', lineHeight: 1.65, fontFamily: "'Lato', sans-serif" }}>
+                    By placing this order, you agree to our{' '}
+                    <Link to="/policies" style={{ color: '#c2602a', textDecoration: 'underline', fontWeight: 600 }}>
+                      Terms & Conditions
+                    </Link>
+                    {' '}and{' '}
+                    <Link to="/policies" style={{ color: '#c2602a', textDecoration: 'underline', fontWeight: 600 }}>
+                      Refund Policy
+                    </Link>.
+                  </p>
+
+                  <p className="text-center text-sm text-stone-600 mt-3">🔒 Secured by Razorpay</p>
                 </div>
               </motion.div>
             </div>
           )}
+
         </div>
       </div>
       <Footer />

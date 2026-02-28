@@ -9,7 +9,7 @@ export const Footer = () => {
     <footer style={{ background: '#1a0f0a', color: '#c8b8a8', fontFamily: "'Lato', sans-serif", marginTop: 0 }}>
 
       {/* Main footer grid */}
-      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '4rem 2rem 2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2.5rem' }}>
+      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '4rem 2rem 2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '2.5rem' }}>
 
         {/* Brand column */}
         <div style={{ gridColumn: 'span 1' }}>
@@ -66,12 +66,12 @@ export const Footer = () => {
           <h4 style={headingStyle}>Shop</h4>
           <ul style={listStyle}>
             {[
-              { to: '/products', label: 'All Products' },
-              { to: '/products?category=bracelets', label: 'Bracelets' },
-              { to: '/products?category=handmade-flowers', label: 'Handmade Flowers' },
-              { to: '/products?category=keychains', label: 'Keychains' },
-              { to: '/products?category=hair-accessories', label: 'Hair Accessories' },
-              { to: '/products?category=gifting-items', label: 'Gifting Items' },
+              { to: '/products',                          label: 'All Products'      },
+              { to: '/products?category=bracelets',       label: 'Bracelets'         },
+              { to: '/products?category=handmade-flowers',label: 'Handmade Flowers'  },
+              { to: '/products?category=keychains',       label: 'Keychains'         },
+              { to: '/products?category=hair-accessories',label: 'Hair Accessories'  },
+              { to: '/products?category=gifting-items',   label: 'Gifting Items'     },
             ].map(link => (
               <li key={link.to}>
                 <Link to={link.to} style={linkStyle}
@@ -90,12 +90,34 @@ export const Footer = () => {
           <ul style={listStyle}>
             {[
               { to: '/track-order', label: 'Track My Order' },
-              { to: '/orders', label: 'My Orders' },
-              { to: '/about', label: 'About Us' },
-              { to: '/contact', label: 'Contact Us' },
-              { to: '/admin/login', label: 'Admin Login' },
+              { to: '/orders',      label: 'My Orders'      },
+              { to: '/about',       label: 'About Us'       },
+              { to: '/contact',     label: 'Contact Us'     },
+              { to: '/admin/login', label: 'Admin Login'    },
             ].map(link => (
               <li key={link.to}>
+                <Link to={link.to} style={linkStyle}
+                  onMouseEnter={e => e.currentTarget.style.color = '#e8a87c'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#7a6050'}>
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* ── Policies links — NEW ── */}
+        <div>
+          <h4 style={headingStyle}>Policies</h4>
+          <ul style={listStyle}>
+            {[
+              { to: '/policies', label: 'Shipping Policy'    },
+              { to: '/policies', label: 'Returns & Refunds'  },
+              { to: '/policies', label: 'Privacy Policy'     },
+              { to: '/policies', label: 'Terms & Conditions' },
+              { to: '/policies', label: 'Refund Policy'      },
+            ].map((link, i) => (
+              <li key={i}>
                 <Link to={link.to} style={linkStyle}
                   onMouseEnter={e => e.currentTarget.style.color = '#e8a87c'}
                   onMouseLeave={e => e.currentTarget.style.color = '#7a6050'}>
@@ -152,6 +174,7 @@ export const Footer = () => {
             </li>
           </ul>
         </div>
+
       </div>
 
       {/* Bottom bar */}
@@ -162,10 +185,25 @@ export const Footer = () => {
         <p style={{ fontSize: '0.82rem', color: '#4a3020', margin: 0 }}>
           © {currentYear} Besties Craft. All rights reserved.
         </p>
+        {/* Policy quick links in bottom bar */}
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          {[
+            { to: '/policies', label: 'Privacy Policy'     },
+            { to: '/policies', label: 'Terms & Conditions' },
+            { to: '/policies', label: 'Refund Policy'      },
+          ].map((l, i) => (
+            <Link key={i} to={l.to} style={{ fontSize: '0.78rem', color: '#4a3020', textDecoration: 'none', transition: 'color 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#c2602a'}
+              onMouseLeave={e => e.currentTarget.style.color = '#4a3020'}>
+              {l.label}
+            </Link>
+          ))}
+        </div>
         <p style={{ fontSize: '0.82rem', color: '#4a3020', margin: 0 }}>
           Payments secured by <span style={{ color: '#6a5040', fontWeight: 700 }}>Razorpay</span>
         </p>
       </div>
+
     </footer>
   );
 };
