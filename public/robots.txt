@@ -1,7 +1,7 @@
 User-agent: *
 Allow: /
 
-# Block admin pages from Google index
+# Block admin and private routes from Google index
 Disallow: /admin/
 Disallow: /admin/login
 Disallow: /admin/dashboard
@@ -11,9 +11,22 @@ Disallow: /admin/customers
 Disallow: /checkout
 Disallow: /order-confirmation/
 Disallow: /orders
+Disallow: /cart
+Disallow: /account
+Disallow: /login
+Disallow: /signup
+Disallow: /reset-password
+Disallow: /api/
 
-# Sitemap location — REPLACE with your domain after going live
-Sitemap: https://www.bestiescraft.in/sitemap.xml
+# Prevent duplicate content from sort/search params
+Disallow: /*?sort=*
+Disallow: /*?search=*
+
+# Explicitly allow category pages (overrides the ?param rule above)
+Allow: /products?category=
 
 # Crawl-delay: be nice to server
 Crawl-delay: 1
+
+# Sitemap
+Sitemap: https://www.bestiescraft.in/sitemap.xml
