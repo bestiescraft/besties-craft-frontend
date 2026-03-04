@@ -10,7 +10,7 @@ import { useEffect } from 'react';
  *     url: '/products',       // optional canonical path
  *   });
  */
-const BASE_URL = 'https://besties-craft-frontend.vercel.app';
+const BASE_URL = 'https://www.bestiescraft.in';   // ← FIXED (was vercel.app)
 const DEFAULT_IMAGE = `${BASE_URL}/og-image.jpg`;
 
 const usePageMeta = ({ title, description, image, url, type = 'website' }) => {
@@ -22,7 +22,6 @@ const usePageMeta = ({ title, description, image, url, type = 'website' }) => {
       let el = document.querySelector(selector);
       if (!el) {
         el = document.createElement('meta');
-        // extract name or property from selector
         if (selector.includes('property=')) {
           el.setAttribute('property', selector.match(/property="([^"]+)"/)[1]);
         } else if (selector.includes('name=')) {
