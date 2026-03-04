@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock } from 'lucide-react';
@@ -8,145 +8,126 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApp } from '@/App';
-import { auth } from '@/firebase';
-import {
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink,
-} from 'firebase/auth';
 import { toast } from 'sonner';
 
-const ACTION_CODE_SETTINGS = {
-  url:             window.location.origin + '/login', // redirects back to same site
-  handleCodeInApp: true,                              // opens in same tab, NOT a popup
-};
+const API_BASE = process.env.REACT_APP_API_URL || 'https://besties-craft-backend-1.onrender.com';
 
 const LoginPage = () => {
   const navigate          = useNavigate();
   const { user, setUser } = useApp();
 
   const [email,     setEmail]     = useState('');
-  const [linkSent,  setLinkSent]  = useState(false);
+  const [step,      setStep]      = useState('email');  // 'email' | 'otp' | 'done'
+  const [otp,       setOtp]       = useState(['', '', '', '', '', '']);
   const [loading,   setLoading]   = useState(false);
-  const [verifying, setVerifying] = useState(false);
+  const [resendTimer, setTimer]   = useState(0);
+
+  const inputRefs = useRef([]);
 
   // If already logged in, go home
   useEffect(() => {
     if (user) navigate('/');
   }, [user, navigate]);
 
-  // ── Runs when user clicks the magic link in their email and lands back on /login ──
+  // Countdown for resend button
   useEffect(() => {
-    if (!isSignInWithEmailLink(auth, window.location.href)) return;
+    if (resendTimer <= 0) return;
+    const id = setTimeout(() => setTimer(t => t - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendTimer]);
 
-    setVerifying(true);
-
-    // Email was saved to localStorage when user clicked "Send Login Link"
-    // This means NO prompt asking for email again — it's handled automatically
-    const savedEmail = localStorage.getItem('emailForSignIn');
-
-    if (!savedEmail) {
-      // Edge case: user opened link on a different device (no localStorage)
-      // Show the form again with a helpful message
-      setVerifying(false);
-      toast.info('Please enter your email to complete sign-in.');
-      return;
-    }
-
-    signInWithEmailLink(auth, savedEmail, window.location.href)
-      .then(async (result) => {
-        // Cleanup
-        localStorage.removeItem('emailForSignIn');
-        window.history.replaceState({}, document.title, '/login'); // clean URL
-
-        const firebaseUser = result.user;
-        const token = await firebaseUser.getIdToken();
-
-        const userData = {
-          id:    firebaseUser.uid,
-          email: firebaseUser.email,
-          name:  firebaseUser.displayName
-                   || firebaseUser.email?.split('@')[0]
-                   || 'Customer',
-        };
-
-        // Save to localStorage so app context persists on refresh
-        localStorage.setItem('token', token);
-        localStorage.setItem('user',  JSON.stringify(userData));
-        setUser(userData);
-
-        toast.success('Welcome to Besties Craft! ✦');
-        navigate('/'); // ← redirect to homepage automatically
-      })
-      .catch((err) => {
-        console.error('Sign-in error:', err);
-        localStorage.removeItem('emailForSignIn');
-        window.history.replaceState({}, document.title, '/login');
-
-        switch (err.code) {
-          case 'auth/invalid-action-code':
-            toast.error('This login link has expired or already been used. Please request a new one.');
-            break;
-          case 'auth/invalid-email':
-            toast.error('Email mismatch. Please request a new login link.');
-            break;
-          default:
-            toast.error('Sign-in failed. Please request a new login link.');
-        }
-        setVerifying(false);
-      });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Send the magic link email ──
-  const sendLoginLink = async () => {
-    if (!email.trim())                         { toast.error('Please enter your email address'); return; }
-    if (!/^\S+@\S+\.\S+$/.test(email.trim()))  { toast.error('Please enter a valid email address'); return; }
+  // ── Step 1: Send OTP via ZeptoMail ──────────────────────
+  const sendOTP = async () => {
+    if (!email.trim())                        { toast.error('Please enter your email address'); return; }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { toast.error('Please enter a valid email address'); return; }
 
     setLoading(true);
     try {
-      await sendSignInLinkToEmail(auth, email.trim(), ACTION_CODE_SETTINGS);
-      localStorage.setItem('emailForSignIn', email.trim()); // save for auto-fill on return
-      setLinkSent(true);
-      toast.success('Login link sent! Check your inbox.');
-    } catch (err) {
-      console.error(err);
-      switch (err.code) {
-        case 'auth/operation-not-allowed':
-          toast.error('Email link sign-in is not enabled. Please contact support.');
-          break;
-        case 'auth/too-many-requests':
-          toast.error('Too many attempts. Please wait a few minutes and try again.');
-          break;
-        case 'auth/network-request-failed':
-          toast.error('Network error. Please check your connection and try again.');
-          break;
-        default:
-          toast.error('Failed to send login link. Please try again.');
+      const res  = await fetch(`${API_BASE}/api/auth/send-otp`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStep('otp');
+        setTimer(60);
+        toast.success(`OTP sent to ${email}! Check your inbox.`);
+        setTimeout(() => inputRefs.current[0]?.focus(), 150);
+      } else {
+        throw new Error(data.detail || 'Failed to send OTP');
       }
+    } catch (err) {
+      toast.error(err.message || 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Verifying screen shown while processing the magic link ──
-  if (verifying) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="text-center">
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✉️</div>
-            <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-3">
-              Verifying your login…
-            </h2>
-            <p className="text-stone-500 text-sm">Please wait a moment.</p>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
+  // ── Step 2: Verify OTP ───────────────────────────────────
+  const verifyOTP = async () => {
+    const otpString = otp.join('');
+    if (otpString.length !== 6) { toast.error('Please enter the full 6-digit OTP'); return; }
 
+    setLoading(true);
+    try {
+      const res  = await fetch(`${API_BASE}/api/auth/verify-otp`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email: email.trim().toLowerCase(), otp: otpString }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // OTP verified — create user session
+        const userData = {
+          id:    email.trim().toLowerCase(),
+          email: email.trim().toLowerCase(),
+          name:  email.split('@')[0],
+        };
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        toast.success('Welcome to Besties Craft! ✦');
+        navigate('/');
+      } else {
+        throw new Error(data.detail || 'Incorrect OTP');
+      }
+    } catch (err) {
+      toast.error(err.message || 'OTP verification failed. Please try again.');
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── OTP input handlers ───────────────────────────────────
+  const handleOtpChange = (index, value) => {
+    if (!/^\d*$/.test(value)) return;
+    const newOtp = [...otp];
+    newOtp[index] = value.slice(-1);
+    setOtp(newOtp);
+    if (value && index < 5) inputRefs.current[index + 1]?.focus();
+    // Auto-submit on last digit
+    if (index === 5 && value) {
+      const full = [...newOtp.slice(0, 5), value].join('');
+      if (full.length === 6) setTimeout(verifyOTP, 100);
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+    if (e.key === 'Enter') verifyOTP();
+  };
+
+  const handleResend = () => {
+    if (resendTimer > 0) return;
+    setOtp(['', '', '', '', '', '']);
+    sendOTP();
+  };
+
+  // ── Render ───────────────────────────────────────────────
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#faf7f2' }}>
       <Navbar />
@@ -168,14 +149,16 @@ const LoginPage = () => {
             transition={{ duration: 0.5 }}
             className="bg-white rounded-2xl p-8 md:p-10 shadow-md border border-stone-100 mb-6"
           >
-            {!linkSent ? (
+
+            {/* STEP 1 — Email input */}
+            {step === 'email' && (
               <>
                 <div className="flex items-center gap-3 mb-2">
                   <span style={{ fontSize: '1.4rem' }}>✉️</span>
                   <h2 className="text-lg font-serif font-semibold text-stone-900">Login with Email</h2>
                 </div>
                 <p className="text-stone-400 text-sm mb-7">
-                  We'll send a secure one-click login link to your inbox — no password needed.
+                  We'll send a 6-digit OTP to your inbox — no password needed.
                 </p>
 
                 <div className="space-y-4">
@@ -191,45 +174,98 @@ const LoginPage = () => {
                         placeholder="your@email.com"
                         value={email}
                         onChange={e => setEmail(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && sendLoginLink()}
+                        onKeyDown={e => e.key === 'Enter' && sendOTP()}
                         className="pl-12 py-6 text-base"
                       />
                     </div>
                   </div>
 
                   <Button
-                    onClick={sendLoginLink}
+                    onClick={sendOTP}
                     disabled={loading}
                     className="btn-primary w-full py-6 text-base"
                   >
-                    {loading ? 'Sending…' : 'Send Login Link'}
+                    {loading ? 'Sending OTP…' : 'Send OTP'}
                   </Button>
                 </div>
               </>
-            ) : (
+            )}
+
+            {/* STEP 2 — OTP input */}
+            {step === 'otp' && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-4"
               >
-                <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>📬</div>
-                <h2 className="text-2xl font-serif font-semibold text-stone-900 mb-3">
-                  Check your inbox!
-                </h2>
-                <p className="text-stone-500 mb-2">We sent a login link to:</p>
-                <p className="text-amber-700 font-semibold text-lg mb-5">{email}</p>
-                <p className="text-stone-400 text-sm mb-7 leading-relaxed">
-                  Click the link in the email to log in instantly.<br />
-                  It expires in 10 minutes. Check your spam folder too.
+                <div className="flex items-center gap-3 mb-2">
+                  <span style={{ fontSize: '1.4rem' }}>🔐</span>
+                  <h2 className="text-lg font-serif font-semibold text-stone-900">Enter your OTP</h2>
+                </div>
+                <p className="text-stone-400 text-sm mb-1">
+                  We sent a 6-digit code to:
                 </p>
-                <button
-                  onClick={() => { setLinkSent(false); setEmail(''); }}
-                  className="text-stone-400 hover:text-stone-700 text-sm underline transition-colors"
+                <p className="text-amber-700 font-semibold mb-6">{email}</p>
+
+                {/* OTP boxes */}
+                <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', marginBottom: '1.5rem' }}>
+                  {otp.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={el => (inputRefs.current[i] = el)}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={e => handleOtpChange(i, e.target.value)}
+                      onKeyDown={e => handleOtpKeyDown(i, e)}
+                      onFocus={e => e.target.select()}
+                      style={{
+                        width: 48, height: 56, textAlign: 'center',
+                        fontSize: '1.4rem', fontWeight: 700,
+                        border: `2px solid ${digit ? '#c0556a' : '#e7e5e4'}`,
+                        borderRadius: 10, color: '#1c1917',
+                        background: '#faf7f2', outline: 'none',
+                        fontFamily: 'monospace', transition: 'border-color 0.15s',
+                      }}
+                    />
+                  ))}
+                </div>
+
+                <p className="text-stone-400 text-xs text-center mb-5">
+                  Code expires in 10 minutes. Check your spam folder too.
+                </p>
+
+                <Button
+                  onClick={verifyOTP}
+                  disabled={loading || otp.join('').length !== 6}
+                  className="btn-primary w-full py-6 text-base mb-4"
                 >
-                  Use a different email
-                </button>
+                  {loading ? 'Verifying…' : 'Verify OTP ✓'}
+                </Button>
+
+                {/* Resend + change email */}
+                <div className="flex items-center justify-between text-sm">
+                  <button
+                    onClick={() => { setStep('email'); setOtp(['','','','','','']); }}
+                    className="text-stone-400 hover:text-stone-700 underline transition-colors"
+                  >
+                    ← Change email
+                  </button>
+                  <button
+                    onClick={handleResend}
+                    disabled={resendTimer > 0}
+                    style={{
+                      color: resendTimer > 0 ? '#d4ccc8' : '#c0556a',
+                      fontWeight: 700, background: 'none', border: 'none',
+                      cursor: resendTimer > 0 ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
+                  </button>
+                </div>
               </motion.div>
             )}
+
           </motion.div>
 
           {/* ── Info cards ── */}
@@ -250,8 +286,8 @@ const LoginPage = () => {
             <div className="bg-stone-50 rounded-2xl p-5 border border-stone-100">
               <h3 className="text-base font-semibold text-stone-900 mb-3">Security</h3>
               <ul className="space-y-2 text-stone-600 text-sm">
-                <li className="flex items-start gap-2"><Lock className="w-4 h-4 text-stone-500 flex-shrink-0 mt-0.5" /> Secure one-click link — no password needed</li>
-                <li className="flex items-start gap-2"><Lock className="w-4 h-4 text-stone-500 flex-shrink-0 mt-0.5" /> Powered by Google Firebase</li>
+                <li className="flex items-start gap-2"><Lock className="w-4 h-4 text-stone-500 flex-shrink-0 mt-0.5" /> Secure 6-digit OTP — no password needed</li>
+                <li className="flex items-start gap-2"><Lock className="w-4 h-4 text-stone-500 flex-shrink-0 mt-0.5" /> Powered by ZeptoMail</li>
               </ul>
             </div>
           </motion.div>
