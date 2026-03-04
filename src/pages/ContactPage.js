@@ -1,55 +1,62 @@
 import React, { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { Mail, Phone, Clock, Send, MessageCircle } from 'lucide-react';
+import { Mail, Phone, Clock, Send, MessageCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import usePageMeta from '@/hooks/usePageMeta'; // ← NEW
+import usePageMeta from '@/hooks/usePageMeta';
 
-const WHATSAPP_NUMBER = '918810776486'; // +91 8810776486
+const API_BASE      = process.env.REACT_APP_API_URL || 'https://besties-craft-backend-1.onrender.com';
+const WHATSAPP_NUMBER = '918810776486';
 
 const ContactPage = () => {
-  // ── NEW: SEO meta tags ──
   usePageMeta({
     title: 'Contact Us — Besties Craft | Handmade Crochet Products India',
     description: 'Get in touch with Besties Craft. WhatsApp, call or email us for custom crochet orders, queries or just a hello! We reply within 24 hours.',
     url: '/contact',
   });
 
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '' });
-  const [loading, setLoading] = useState(false);
+  const [formData, setFormData]   = useState({ name: '', email: '', phone: '', message: '' });
+  const [loading, setLoading]     = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  // ── Submit via backend API (sends real email via ZeptoMail) ──
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.message) {
       toast.error('Please fill in your name, email and message');
       return;
     }
     setLoading(true);
-
-    // Build WhatsApp message
-    const text = `Hi Besties Craft! 👋
-
-*Name:* ${formData.name}
-*Email:* ${formData.email}
-*Phone:* ${formData.phone || 'Not provided'}
-
-*Message:*
-${formData.message}`;
-
-    const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
-
-    // Small delay for UX, then open WhatsApp
-    setTimeout(() => {
-      window.open(waUrl, '_blank');
-      toast.success('Opening WhatsApp — your message is ready to send!');
-      setFormData({ name: '', email: '', phone: '', message: '' });
+    try {
+      const res = await fetch(`${API_BASE}/api/contact`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          name:    formData.name.trim(),
+          email:   formData.email.trim(),
+          phone:   formData.phone.trim(),
+          message: formData.message.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSubmitted(true);
+        toast.success('Message sent! We\'ll get back to you within 24–48 hours. 💌');
+        setFormData({ name: '', email: '', phone: '', message: '' });
+      } else {
+        throw new Error(data.detail || 'Something went wrong');
+      }
+    } catch (err) {
+      console.error('Contact form error:', err);
+      toast.error('Failed to send message. Please try WhatsApp or email us directly.');
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
   return (
@@ -105,11 +112,29 @@ ${formData.message}`;
           background: var(--dark); color: #fff; border: none; border-radius: 12px;
           font-size: 0.95rem; font-weight: 700; cursor: pointer; font-family: 'Lato', sans-serif;
           display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-          transition: background 0.2s; opacity: 1;
+          transition: background 0.2s;
         }
         .cp-submit:hover { background: var(--brown); }
         .cp-submit:disabled { opacity: 0.6; cursor: not-allowed; }
-        .cp-form-note { font-size: 0.75rem; color: var(--muted); text-align: center; margin-top: 0.75rem; }
+
+        /* Success state */
+        .cp-success {
+          text-align: center; padding: 2.5rem 1.5rem;
+        }
+        .cp-success-icon {
+          width: 64px; height: 64px; background: #e8f8f0; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          margin: 0 auto 1.25rem; color: #2ecc71;
+        }
+        .cp-success h3 { font-family: 'Playfair Display', serif; color: var(--dark); margin: 0 0 0.5rem; }
+        .cp-success p { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.5rem; }
+        .cp-send-another {
+          padding: 0.7rem 1.5rem; background: transparent; color: var(--terracotta);
+          border: 1.5px solid var(--terracotta); border-radius: 10px;
+          font-size: 0.88rem; font-weight: 700; cursor: pointer; font-family: 'Lato', sans-serif;
+          transition: all 0.2s;
+        }
+        .cp-send-another:hover { background: var(--terracotta); color: #fff; }
 
         @media (max-width: 700px) {
           .cp-grid { grid-template-columns: 1fr; }
@@ -125,7 +150,8 @@ ${formData.message}`;
             <p className="cp-subhead">We'd love to hear from you — orders, customisation queries, or just a hello!</p>
 
             <div className="cp-grid">
-              {/* Info */}
+
+              {/* ── Info panel ── */}
               <div className="cp-info-card">
                 <h2 className="cp-info-title">Get in Touch</h2>
 
@@ -156,39 +182,84 @@ ${formData.message}`;
                   </div>
                 </div>
 
-                {/* Direct WhatsApp button */}
-                <button className="cp-wa-btn" onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}`, '_blank')}>
+                <button
+                  className="cp-wa-btn"
+                  onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}`, '_blank')}
+                >
                   <MessageCircle size={17} /> Chat on WhatsApp
                 </button>
               </div>
 
-              {/* Form */}
+              {/* ── Form panel ── */}
               <div className="cp-form-card">
-                <h2 className="cp-form-title">Send us a Message</h2>
-                <form onSubmit={handleSubmit}>
-                  <div className="cp-field">
-                    <label className="cp-label" htmlFor="name">Full Name *</label>
-                    <input className="cp-input" id="name" name="name" type="text" placeholder="Your name" value={formData.name} onChange={handleChange} />
+                {submitted ? (
+                  /* Success state */
+                  <div className="cp-success">
+                    <div className="cp-success-icon">
+                      <CheckCircle size={32} />
+                    </div>
+                    <h3>Message Sent! 💌</h3>
+                    <p>
+                      Thanks for reaching out! We've received your message and
+                      sent a confirmation to your email.<br />
+                      We'll get back to you within <strong>24–48 hours</strong>.
+                    </p>
+                    <button
+                      className="cp-send-another"
+                      onClick={() => setSubmitted(false)}
+                    >
+                      Send another message
+                    </button>
                   </div>
-                  <div className="cp-field">
-                    <label className="cp-label" htmlFor="email">Email Address *</label>
-                    <input className="cp-input" id="email" name="email" type="email" placeholder="your@email.com" value={formData.email} onChange={handleChange} />
-                  </div>
-                  <div className="cp-field">
-                    <label className="cp-label" htmlFor="phone">Phone Number <span style={{fontWeight:400,color:'var(--muted)'}}>(optional)</span></label>
-                    <input className="cp-input" id="phone" name="phone" type="tel" placeholder="+91 XXXXX XXXXX" value={formData.phone} onChange={handleChange} />
-                  </div>
-                  <div className="cp-field">
-                    <label className="cp-label" htmlFor="message">Message *</label>
-                    <textarea className="cp-input cp-textarea" id="message" name="message" placeholder="Tell us about your order, customisation idea, or any question…" value={formData.message} onChange={handleChange} />
-                  </div>
-                  <button className="cp-submit" type="submit" disabled={loading}>
-                    <Send size={16} />
-                    {loading ? 'Opening WhatsApp…' : 'Send via WhatsApp'}
-                  </button>
-                  <p className="cp-form-note">Clicking send will open WhatsApp with your message pre-filled.</p>
-                </form>
+                ) : (
+                  /* Form */
+                  <>
+                    <h2 className="cp-form-title">Send us a Message</h2>
+                    <form onSubmit={handleSubmit}>
+                      <div className="cp-field">
+                        <label className="cp-label" htmlFor="name">Full Name *</label>
+                        <input
+                          className="cp-input" id="name" name="name" type="text"
+                          placeholder="Your name" value={formData.name} onChange={handleChange}
+                        />
+                      </div>
+                      <div className="cp-field">
+                        <label className="cp-label" htmlFor="email">Email Address *</label>
+                        <input
+                          className="cp-input" id="email" name="email" type="email"
+                          placeholder="your@email.com" value={formData.email} onChange={handleChange}
+                        />
+                      </div>
+                      <div className="cp-field">
+                        <label className="cp-label" htmlFor="phone">
+                          Phone Number{' '}
+                          <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(optional)</span>
+                        </label>
+                        <input
+                          className="cp-input" id="phone" name="phone" type="tel"
+                          placeholder="+91 XXXXX XXXXX" value={formData.phone} onChange={handleChange}
+                        />
+                      </div>
+                      <div className="cp-field">
+                        <label className="cp-label" htmlFor="message">Message *</label>
+                        <textarea
+                          className="cp-input cp-textarea" id="message" name="message"
+                          placeholder="Tell us about your order, customisation idea, or any question…"
+                          value={formData.message} onChange={handleChange}
+                        />
+                      </div>
+                      <button className="cp-submit" type="submit" disabled={loading}>
+                        <Send size={16} />
+                        {loading ? 'Sending…' : 'Send Message'}
+                      </button>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'center', marginTop: '0.75rem' }}>
+                        We'll email you a confirmation and reply within 24–48 hours.
+                      </p>
+                    </form>
+                  </>
+                )}
               </div>
+
             </div>
           </div>
         </div>
