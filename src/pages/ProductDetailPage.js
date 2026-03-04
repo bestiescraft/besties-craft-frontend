@@ -62,31 +62,57 @@ const fixImageUrl = (url) => {
 };
 const COLOR_MAP = PRESET_COLORS.reduce((acc, c) => { acc[c.name] = c.hex; return acc; }, {});
 
-// ── Dynamic SEO meta setter ──────────────────────────────────────────────────
+// ── Dynamic SEO meta + structured data setter ─────────────────────────────
 const setProductMeta = (product) => {
   if (!product) return;
-  const title = `${product.name} — Handmade Crochet | Besties Craft`;
-  const desc  = `Buy handmade ${product.name} at ₹${product.base_price}. ${product.description?.slice(0, 120) || 'Handcrafted with love in India. Custom colours available. Pan-India delivery.'}`;
-  const image = product.images?.[0]?.url || '';
-  const url   = `https://www.bestiescraft.in/products/${product._id}`;
+
+  const catName   = normalizeCategory(product.category) || 'Crochet Product';
+  const title     = `Buy Handmade ${product.name} Online India — Besties Craft`;
+  const desc      = `Buy handmade ${product.name} at ₹${product.base_price}. ${product.description?.slice(0, 110) || 'Handcrafted crochet product made with love in Varanasi, India.'} Custom colours. Pan-India delivery.`;
+  const image     = product.images?.[0]?.url || '';
+  const url       = `https://www.bestiescraft.in/products/${product._id}`;
 
   document.title = title;
+
   const setMeta = (sel, val) => {
     let el = document.querySelector(sel);
-    if (!el) { el = document.createElement('meta'); if (sel.includes('property=')) el.setAttribute('property', sel.match(/property="([^"]+)"/)[1]); else el.setAttribute('name', sel.match(/name="([^"]+)"/)[1]); document.head.appendChild(el); }
+    if (!el) {
+      el = document.createElement('meta');
+      if (sel.includes('property=')) el.setAttribute('property', sel.match(/property="([^"]+)"/)[1]);
+      else el.setAttribute('name', sel.match(/name="([^"]+)"/)[1]);
+      document.head.appendChild(el);
+    }
     el.setAttribute('content', val);
   };
+
   setMeta('meta[name="description"]',         desc);
+  setMeta('meta[name="keywords"]',
+    `handmade ${product.name} India, buy ${product.name} online India, crochet ${catName.toLowerCase()} India, handmade ${catName.toLowerCase()} India, Besties Craft, woollen gifts India, custom crochet India`
+  );
   setMeta('meta[property="og:title"]',        title);
   setMeta('meta[property="og:description"]',  desc);
   setMeta('meta[property="og:url"]',          url);
-  if (image) { setMeta('meta[property="og:image"]', image); setMeta('meta[name="twitter:image"]', image); }
   setMeta('meta[property="og:type"]',         'product');
+  if (image) {
+    setMeta('meta[property="og:image"]',      image);
+    setMeta('meta[property="og:image:alt"]',  `Handmade ${product.name} — Besties Craft India`);
+    setMeta('meta[name="twitter:image"]',     image);
+    setMeta('meta[name="twitter:image:alt"]', `Handmade ${product.name} — Besties Craft India`);
+  }
+  setMeta('meta[name="twitter:title"]',       title);
+  setMeta('meta[name="twitter:description"]', desc);
+  setMeta('meta[name="twitter:card"]',        'summary_large_image');
+
+  // Canonical
   let canonical = document.querySelector('link[rel="canonical"]');
-  if (!canonical) { canonical = document.createElement('link'); canonical.setAttribute('rel', 'canonical'); document.head.appendChild(canonical); }
+  if (!canonical) {
+    canonical = document.createElement('link');
+    canonical.setAttribute('rel', 'canonical');
+    document.head.appendChild(canonical);
+  }
   canonical.setAttribute('href', url);
 
-  // Product structured data for Google Shopping
+  // Product structured data for Google Shopping + rich results
   const existing = document.getElementById('product-ld-json');
   if (existing) existing.remove();
   const script = document.createElement('script');
@@ -96,22 +122,76 @@ const setProductMeta = (product) => {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
-    description: product.description || '',
+    description: product.description || `Handmade ${catName} crafted in Varanasi, India. Custom colours available. Pan-India delivery.`,
     image: product.images?.map(img => img.url) || [],
     brand: { '@type': 'Brand', name: 'Besties Craft' },
+    manufacturer: {
+      '@type': 'Organization',
+      name: 'Besties Craft',
+      url: 'https://www.bestiescraft.in',
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: 'Varanasi',
+        addressRegion: 'Uttar Pradesh',
+        addressCountry: 'IN',
+      },
+    },
+    sku: product._id,
+    category: catName,
+    material: 'Handmade Crochet / Woollen',
+    countryOfOrigin: 'IN',
     offers: {
       '@type': 'Offer',
       priceCurrency: 'INR',
       price: product.base_price,
-      availability: (product.in_stock || product.stock > 0) ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-      seller: { '@type': 'Organization', name: 'Besties Craft' },
+      availability: (product.in_stock || product.stock > 0)
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      seller: {
+        '@type': 'Organization',
+        name: 'Besties Craft',
+        url: 'https://www.bestiescraft.in',
+      },
       url,
+      shippingDetails: {
+        '@type': 'OfferShippingDetails',
+        shippingRate: {
+          '@type': 'MonetaryAmount',
+          currency: 'INR',
+        },
+        shippingDestination: {
+          '@type': 'DefinedRegion',
+          addressCountry: 'IN',
+        },
+      },
+      hasMerchantReturnPolicy: {
+        '@type': 'MerchantReturnPolicy',
+        applicableCountry: 'IN',
+        returnPolicyCategory: 'https://schema.org/MerchantReturnUnspecified',
+        merchantReturnDays: 2,
+        returnMethod: 'https://schema.org/ReturnByMail',
+        returnFees: 'https://schema.org/FreeReturn',
+      },
     },
-    aggregateRating: product.reviews_count > 0 ? {
-      '@type': 'AggregateRating',
-      ratingValue: product.rating || 0,
-      reviewCount: product.reviews_count,
-    } : undefined,
+    ...(product.reviews_count > 0 ? {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: product.rating || 0,
+        reviewCount: product.reviews_count,
+        bestRating: 5,
+        worstRating: 1,
+      },
+    } : {}),
+    // BreadcrumbList inline
+    breadcrumb: {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home',     item: 'https://www.bestiescraft.in/' },
+        { '@type': 'ListItem', position: 2, name: 'Products', item: 'https://www.bestiescraft.in/products' },
+        { '@type': 'ListItem', position: 3, name: catName,    item: `https://www.bestiescraft.in/products?category=${product.category}` },
+        { '@type': 'ListItem', position: 4, name: product.name, item: url },
+      ],
+    },
   });
   document.head.appendChild(script);
 };
@@ -121,13 +201,17 @@ const StarRating = ({ value = 0, max = 5, size = 18, interactive = false, onChan
   const [hovered, setHovered] = useState(0);
   const display = interactive ? (hovered || value) : value;
   return (
-    <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: 2, alignItems: 'center' }} aria-label={`Rating: ${value} out of ${max}`}>
       {Array.from({ length: max }).map((_, i) => {
         const filled = i < Math.floor(display);
         return (
-          <span key={i} onClick={() => interactive && onChange && onChange(i + 1)}
-            onMouseEnter={() => interactive && setHovered(i + 1)} onMouseLeave={() => interactive && setHovered(0)}
-            style={{ cursor: interactive ? 'pointer' : 'default', color: filled ? '#f59e0b' : '#d1d5db', fontSize: size, lineHeight: 1, transition: 'color 0.12s' }}>
+          <span key={i}
+            onClick={() => interactive && onChange && onChange(i + 1)}
+            onMouseEnter={() => interactive && setHovered(i + 1)}
+            onMouseLeave={() => interactive && setHovered(0)}
+            style={{ cursor: interactive ? 'pointer' : 'default', color: filled ? '#f59e0b' : '#d1d5db', fontSize: size, lineHeight: 1, transition: 'color 0.12s' }}
+            aria-hidden="true"
+          >
             {filled ? '★' : '☆'}
           </span>
         );
@@ -141,8 +225,8 @@ const RatingBar = ({ star, count, total }) => {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.3rem' }}>
       <span style={{ fontSize: '0.78rem', color: '#9a8070', fontFamily: 'sans-serif', minWidth: 10 }}>{star}</span>
-      <span style={{ color: '#f59e0b', fontSize: 11 }}>★</span>
-      <div style={{ flex: 1, height: 7, background: '#f0ebe3', borderRadius: 99, overflow: 'hidden' }}>
+      <span style={{ color: '#f59e0b', fontSize: 11 }} aria-hidden="true">★</span>
+      <div style={{ flex: 1, height: 7, background: '#f0ebe3', borderRadius: 99, overflow: 'hidden' }} role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
         <div style={{ height: '100%', width: `${pct}%`, background: '#f59e0b', borderRadius: 99, transition: 'width 0.5s' }} />
       </div>
       <span style={{ fontSize: '0.75rem', color: '#9a8070', fontFamily: 'sans-serif', minWidth: 20, textAlign: 'right' }}>{count}</span>
@@ -155,23 +239,25 @@ const ReviewCard = ({ review, index }) => {
   const name    = review.reviewer_name || review.user_email?.split('@')[0] || 'Anonymous';
   const date    = review.createdAt ? new Date(review.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
-      style={{ background: '#fff', borderRadius: 16, border: '1px solid #f0ebe3', padding: '1.25rem 1.4rem', marginBottom: '0.85rem' }}>
+    <motion.article initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
+      style={{ background: '#fff', borderRadius: 16, border: '1px solid #f0ebe3', padding: '1.25rem 1.4rem', marginBottom: '0.85rem' }}
+      itemScope itemType="https://schema.org/Review"
+    >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg,#c2602a,#5c3d2e)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1rem', fontWeight: 700, fontFamily: 'sans-serif', flexShrink: 0 }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg,#c2602a,#5c3d2e)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1rem', fontWeight: 700, fontFamily: 'sans-serif', flexShrink: 0 }} aria-hidden="true">
           {initial}
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.3rem' }}>
-            <span style={{ fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#2c1810' }}>{name}</span>
-            <span style={{ fontSize: '0.72rem', color: '#9a8070', fontFamily: 'sans-serif' }}>{date}</span>
+            <span style={{ fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#2c1810' }} itemProp="author">{name}</span>
+            <span style={{ fontSize: '0.72rem', color: '#9a8070', fontFamily: 'sans-serif' }} itemProp="datePublished">{date}</span>
           </div>
           <div style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}><StarRating value={review.rating} size={14} /></div>
-          {review.title && <p style={{ fontFamily: 'Georgia,serif', fontWeight: 600, fontSize: '0.92rem', color: '#2c1810', margin: '0 0 0.35rem' }}>{review.title}</p>}
-          {review.comment && <p style={{ fontFamily: 'sans-serif', fontSize: '0.87rem', color: '#4a3728', lineHeight: 1.65, margin: 0 }}>{review.comment}</p>}
+          {review.title && <p style={{ fontFamily: 'Georgia,serif', fontWeight: 600, fontSize: '0.92rem', color: '#2c1810', margin: '0 0 0.35rem' }} itemProp="name">{review.title}</p>}
+          {review.comment && <p style={{ fontFamily: 'sans-serif', fontSize: '0.87rem', color: '#4a3728', lineHeight: 1.65, margin: 0 }} itemProp="reviewBody">{review.comment}</p>}
         </div>
       </div>
-    </motion.div>
+    </motion.article>
   );
 };
 
@@ -215,19 +301,19 @@ const ReviewForm = ({ productId, user, onSubmitted }) => {
       style={{ background: '#fff', borderRadius: 18, border: '1.5px solid #e8dfd0', padding: '1.75rem', marginBottom: '1.5rem' }}>
       <h3 style={{ fontFamily: 'Playfair Display,Georgia,serif', fontSize: '1.2rem', fontWeight: 700, color: '#2c1810', margin: '0 0 1.25rem' }}>Write a Review</h3>
       <div style={{ marginBottom: '1.1rem' }}>
-        <label style={labelSt}>Your Rating *</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.4rem' }}>
+        <label style={labelSt} htmlFor="review-rating">Your Rating *</label>
+        <div id="review-rating" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.4rem' }}>
           <StarRating value={rating} size={28} interactive onChange={setRating} />
           {rating > 0 && <span style={{ fontSize: '0.82rem', color: '#9a8070', fontFamily: 'sans-serif' }}>{['','Poor','Fair','Good','Very Good','Excellent'][rating]}</span>}
         </div>
       </div>
       <div style={{ marginBottom: '1rem' }}>
-        <label style={labelSt}>Review Title</label>
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Summarise your experience…" maxLength={100} style={inputSt} />
+        <label style={labelSt} htmlFor="review-title">Review Title</label>
+        <input id="review-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="Summarise your experience…" maxLength={100} style={inputSt} />
       </div>
       <div style={{ marginBottom: '1.25rem' }}>
-        <label style={labelSt}>Your Review *</label>
-        <textarea value={comment} onChange={e => setComment(e.target.value.slice(0, 1000))} placeholder="Share details about quality, colour accuracy, delivery…" maxLength={1000} rows={4}
+        <label style={labelSt} htmlFor="review-comment">Your Review *</label>
+        <textarea id="review-comment" value={comment} onChange={e => setComment(e.target.value.slice(0, 1000))} placeholder="Share details about quality, colour accuracy, delivery…" maxLength={1000} rows={4}
           style={{ ...inputSt, resize: 'vertical', minHeight: 100, lineHeight: 1.6 }} />
         <div style={{ textAlign: 'right', fontSize: '0.72rem', color: '#bbb', fontFamily: 'sans-serif', marginTop: '0.25rem' }}>{comment.length} / 1000</div>
       </div>
@@ -258,7 +344,7 @@ const ReviewsSection = ({ productId, initialReviews = [], initialRating = 0, use
   const displayed  = showAll ? reviews : reviews.slice(0, 4);
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1.5rem 5rem', boxSizing: 'border-box' }}>
+    <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1.5rem 5rem', boxSizing: 'border-box' }} aria-label="Customer reviews">
       <hr style={{ border: 'none', borderTop: '1px solid #e8e4df', margin: '0 0 3rem' }} />
       <h2 style={{ fontFamily: 'Playfair Display,Georgia,serif', fontSize: '1.8rem', fontWeight: 700, color: '#1a1a1a', margin: '0 0 2rem' }}>Customer Reviews</h2>
       <div style={{ display: 'flex', gap: '2.5rem', alignItems: 'flex-start', marginBottom: '2.5rem', flexWrap: 'wrap' }}>
@@ -278,7 +364,7 @@ const ReviewsSection = ({ productId, initialReviews = [], initialRating = 0, use
         <p style={{ color: '#9a8070', fontFamily: 'sans-serif', fontSize: '0.9rem' }}>Loading reviews…</p>
       ) : reviews.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem 1rem', background: '#fff', borderRadius: 18, border: '1px solid #f0ebe3' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>✍️</div>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }} aria-hidden="true">✍️</div>
           <p style={{ fontFamily: 'Playfair Display,Georgia,serif', fontSize: '1.1rem', color: '#2c1810', margin: '0 0 0.4rem' }}>No reviews yet</p>
           <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', color: '#9a8070', margin: 0 }}>Be the first to share your experience!</p>
         </div>
@@ -294,7 +380,7 @@ const ReviewsSection = ({ productId, initialReviews = [], initialRating = 0, use
           )}
         </>
       )}
-    </div>
+    </section>
   );
 };
 
@@ -365,7 +451,7 @@ const ProductDetailPage = () => {
 
   if (loading) return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', background:'#f8f7f4' }}>
-      <Navbar /><div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={st.spinner} /></div>
+      <Navbar /><div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={st.spinner} aria-label="Loading product" /></div>
     </div>
   );
   if (!product) return (
@@ -377,11 +463,11 @@ const ProductDetailPage = () => {
     </div>
   );
 
-  const images  = getImages();
-  const inStock = (product.in_stock === true) || (product.stock !== undefined && product.stock > 0);
-  const colors  = product.colors || [];
+  const images          = getImages();
+  const inStock         = (product.in_stock === true) || (product.stock !== undefined && product.stock > 0);
+  const colors          = product.colors || [];
   const displayCategory = normalizeCategory(product.category);
-  const careList = CARE_INSTRUCTIONS[product.category?.toLowerCase().replace(/\s+/g, '-')] || DEFAULT_CARE;
+  const careList        = CARE_INSTRUCTIONS[product.category?.toLowerCase().replace(/\s+/g, '-')] || DEFAULT_CARE;
 
   return (
     <>
@@ -398,7 +484,6 @@ const ProductDetailPage = () => {
         .pdp-custom-textarea::placeholder{color:#bbb;font-size:.85rem;}
         .pdp-custom-counter{text-align:right;font-size:.72rem;color:#bbb;font-family:'Lato',sans-serif;margin-top:.3rem;}
         .pdp-custom-badge{display:inline-flex;align-items:center;gap:.3rem;background:rgba(194,96,42,.1);color:#c2602a;font-size:.7rem;font-weight:700;text-transform:uppercase;padding:.2rem .6rem;border-radius:20px;margin-left:.4rem;}
-        /* Care + Delivery info tabs */
         .pdp-info-tabs{margin-top:2rem;border-top:1px solid #e8e4df;padding-top:1.5rem;}
         .pdp-info-row{display:flex;flex-direction:column;gap:.6rem;}
         .pdp-info-item{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:#faf7f2;border-radius:10px;font-family:'Lato',sans-serif;font-size:.85rem;color:#4a3728;}
@@ -408,6 +493,9 @@ const ProductDetailPage = () => {
         .pdp-care-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.4rem;}
         .pdp-care-item{font-family:'Lato',sans-serif;font-size:.82rem;color:#5c3d2e;display:flex;align-items:flex-start;gap:.5rem;line-height:1.5;}
         .pdp-care-dot{color:#c2602a;flex-shrink:0;margin-top:2px;}
+        /* SEO text block */
+        .pdp-seo-text{max-width:1100px;margin:0 auto;padding:0 1.5rem 2rem;box-sizing:border-box;}
+        .pdp-seo-text p{font-family:'Lato',sans-serif;font-size:.82rem;color:#9a8070;line-height:1.75;}
         @media(max-width:768px){
           .pdp-wrap{padding:1rem 0 3rem;} .pdp-back{margin:0 1rem 1.25rem!important;}
           .pdp-grid{grid-template-columns:1fr!important;gap:0!important;}
@@ -437,24 +525,45 @@ const ProductDetailPage = () => {
 
       <div className="pdp-page">
         <Navbar />
+
         <div className="pdp-wrap">
-          <button className="pdp-back" style={st.backBtn} onClick={() => navigate(-1)}><ArrowLeft size={16} /> Back to Products</button>
+          {/* Breadcrumb nav — important for SEO */}
+          <nav aria-label="Breadcrumb" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8070', fontSize: '0.78rem', fontFamily: 'sans-serif', padding: 0 }}>Home</button>
+            <span style={{ color: '#c8bfb5', fontSize: '0.78rem' }} aria-hidden="true">›</span>
+            <button onClick={() => navigate('/products')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8070', fontSize: '0.78rem', fontFamily: 'sans-serif', padding: 0 }}>Products</button>
+            {displayCategory && (
+              <>
+                <span style={{ color: '#c8bfb5', fontSize: '0.78rem' }} aria-hidden="true">›</span>
+                <button onClick={() => navigate(`/products?category=${product.category}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8070', fontSize: '0.78rem', fontFamily: 'sans-serif', padding: 0 }}>{displayCategory}</button>
+              </>
+            )}
+            <span style={{ color: '#c8bfb5', fontSize: '0.78rem' }} aria-hidden="true">›</span>
+            <span style={{ color: '#2c1810', fontSize: '0.78rem', fontFamily: 'sans-serif' }}>{product.name}</span>
+          </nav>
+
+          <button className="pdp-back" style={st.backBtn} onClick={() => navigate(-1)}>
+            <ArrowLeft size={16} aria-hidden="true" /> Back to Products
+          </button>
+
           <div className="pdp-grid">
             {/* Gallery */}
             <motion.div initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} transition={{duration:.45}} className="pdp-gallery" style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
               <div className="pdp-main-img-wrap" style={st.mainImgWrap}>
                 <img
                   src={images[selectedImage]}
-                  alt={`Handmade ${product.name} - ${displayCategory || 'crochet product'} by Besties Craft`}
+                  alt={`Handmade ${product.name} — ${displayCategory || 'Crochet product'} by Besties Craft India`}
                   style={st.mainImg}
+                  width="600"
+                  height="600"
                   onError={e=>{e.target.src=PLACEHOLDER;}}
                 />
               </div>
               {images.length > 1 && (
-                <div className="pdp-thumb-row" style={st.thumbRow}>
+                <div className="pdp-thumb-row" style={st.thumbRow} role="list" aria-label="Product images">
                   {images.map((img,i) => (
-                    <button key={i} onClick={()=>setSelectedImage(i)} style={{...st.thumbBtn,...(selectedImage===i?st.thumbBtnActive:{})}}>
-                      <img src={img} alt={`${product.name} view ${i+1}`} style={st.thumbImg} onError={e=>{e.target.src=PLACEHOLDER;}} />
+                    <button key={i} onClick={()=>setSelectedImage(i)} style={{...st.thumbBtn,...(selectedImage===i?st.thumbBtnActive:{})}} aria-label={`View image ${i+1} of ${product.name}`} aria-pressed={selectedImage===i}>
+                      <img src={img} alt={`${product.name} — view ${i+1} — Besties Craft`} style={st.thumbImg} loading="lazy" onError={e=>{e.target.src=PLACEHOLDER;}} />
                     </button>
                   ))}
                 </div>
@@ -463,8 +572,18 @@ const ProductDetailPage = () => {
 
             {/* Info */}
             <motion.div initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} transition={{duration:.45,delay:.15}} className="pdp-info-col" style={st.infoCol}>
-              {displayCategory && <span style={st.categoryTag}>{displayCategory.toUpperCase()}</span>}
-              <h1 className="pdp-product-name" style={st.productName}>{product.name}</h1>
+              {displayCategory && (
+                <span style={st.categoryTag}>
+                  <a href={`/products?category=${product.category}`} style={{ color: 'inherit', textDecoration: 'none' }} aria-label={`Browse all ${displayCategory}`}>
+                    {displayCategory.toUpperCase()}
+                  </a>
+                </span>
+              )}
+
+              {/* H1 — primary keyword */}
+              <h1 className="pdp-product-name" style={st.productName}>
+                {product.name}
+              </h1>
 
               {product.reviews_count > 0 && (
                 <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.85rem'}}>
@@ -476,67 +595,84 @@ const ProductDetailPage = () => {
               )}
 
               <div style={st.priceRow}>
-                <span className="pdp-price" style={st.price}>₹{parseFloat(product.base_price).toLocaleString('en-IN')}</span>
-                {inStock ? <span style={st.inStockBadge}><CheckCircle size={13}/> In Stock</span> : <span style={st.outStockBadge}>Out of Stock</span>}
+                <span className="pdp-price" style={st.price} itemProp="price" content={product.base_price}>
+                  ₹{parseFloat(product.base_price).toLocaleString('en-IN')}
+                </span>
+                {inStock
+                  ? <span style={st.inStockBadge}><CheckCircle size={13} aria-hidden="true"/> In Stock</span>
+                  : <span style={st.outStockBadge}>Out of Stock</span>}
               </div>
-              {product.description && <p style={st.description}>{product.description}</p>}
+
+              {product.description && (
+                <p style={st.description} itemProp="description">{product.description}</p>
+              )}
 
               {inStock && (
                 <>
                   {colors.length > 0 && (
                     <div style={st.section}>
                       <div style={st.sectionLabel}>Colour:&nbsp;<span style={st.selectedColorName}>{selectedColor||'—'}</span></div>
-                      <div style={st.swatchRow}>
+                      <div style={st.swatchRow} role="group" aria-label="Select colour">
                         {colors.map(colorName => {
                           const preset=PRESET_COLORS.find(p=>p.name===colorName); const isSelected=selectedColor===colorName;
-                          return (<button key={colorName} title={colorName} onClick={()=>handleColorSelect(colorName)}
+                          return (<button key={colorName} title={colorName} aria-label={`Select colour: ${colorName}`} aria-pressed={isSelected} onClick={()=>handleColorSelect(colorName)}
                             style={{...st.swatch,background:preset?.hex||'#ccc',...(isSelected?st.swatchSelected:{})}}>
-                            {isSelected&&<span style={st.swatchCheck}>✓</span>}
+                            {isSelected&&<span style={st.swatchCheck} aria-hidden="true">✓</span>}
                           </button>);
                         })}
                       </div>
                       {selectedColor && <p style={{margin:'.5rem 0 0',fontSize:'.82rem',color:'#888',fontFamily:'sans-serif'}}>Selected: <strong style={{color:'#333'}}>{selectedColor}</strong></p>}
                     </div>
                   )}
+
                   <div style={st.section}>
                     <div style={st.sectionLabel}>Quantity</div>
                     <div style={st.qtyRow}>
-                      <button style={st.qtyBtn} onClick={()=>setQuantity(q=>Math.max(1,q-1))} disabled={quantity<=1}><Minus size={16}/></button>
-                      <span style={st.qtyNum}>{quantity}</span>
-                      <button style={st.qtyBtn} onClick={()=>setQuantity(q=>q+1)}><Plus size={16}/></button>
+                      <button style={st.qtyBtn} onClick={()=>setQuantity(q=>Math.max(1,q-1))} disabled={quantity<=1} aria-label="Decrease quantity"><Minus size={16} aria-hidden="true"/></button>
+                      <span style={st.qtyNum} aria-live="polite" aria-label={`Quantity: ${quantity}`}>{quantity}</span>
+                      <button style={st.qtyBtn} onClick={()=>setQuantity(q=>q+1)} aria-label="Increase quantity"><Plus size={16} aria-hidden="true"/></button>
                     </div>
                   </div>
+
                   <div className="pdp-custom-wrap">
-                    <div className="pdp-custom-label"><Pencil size={14}/> Customisation <span className="pdp-custom-badge">✦ Optional</span></div>
+                    <div className="pdp-custom-label"><Pencil size={14} aria-hidden="true"/> Customisation <span className="pdp-custom-badge">✦ Optional</span></div>
                     <span className="pdp-custom-sublabel">Since everything is handmade, you can personalise your order. Tell us colours, name, size, pattern, occasion — anything you'd like.</span>
-                    <textarea className="pdp-custom-textarea"
+                    <textarea
+                      className="pdp-custom-textarea"
                       placeholder="e.g. Please make it in light pink with my name 'Priya' — it's for a birthday gift…"
-                      value={customisation} onChange={e=>setCustomisation(e.target.value.slice(0,500))} maxLength={500}/>
+                      value={customisation}
+                      onChange={e=>setCustomisation(e.target.value.slice(0,500))}
+                      maxLength={500}
+                      aria-label="Customisation request"
+                    />
                     <div className="pdp-custom-counter">{customisation.length} / 500</div>
                   </div>
-                  <button style={st.cartBtn} onClick={addToCart}>
-                    <ShoppingCart size={20}/>{customisation.trim()?'Add to Cart with Customisation':'Add to Cart'}
+
+                  <button style={st.cartBtn} onClick={addToCart} aria-label={`Add ${product.name} to cart`}>
+                    <ShoppingCart size={20} aria-hidden="true"/>
+                    {customisation.trim()?'Add to Cart with Customisation':'Add to Cart'}
                   </button>
                   {customisation.trim()&&<p style={{marginTop:'.65rem',fontSize:'.78rem',color:'#9a8070',fontFamily:'sans-serif',textAlign:'center',lineHeight:1.5}}>✦ Your customisation note will be sent to us with the order</p>}
                 </>
               )}
+
               {!inStock&&<div style={st.outOfStockBox}><p style={{margin:0,color:'#be123c',fontWeight:600}}>This product is currently out of stock.</p></div>}
 
               {/* Delivery & trust info */}
               <div className="pdp-info-tabs">
                 <div className="pdp-info-row">
-                  <div className="pdp-info-item"><Truck size={16} className="pdp-info-icon" style={{color:'#c2602a'}}/> Pan-India delivery · Live rates at checkout</div>
-                  <div className="pdp-info-item"><Shield size={16} style={{color:'#c2602a'}}/> Secure payment via Razorpay (UPI, Cards, Net Banking)</div>
-                  <div className="pdp-info-item"><RefreshCw size={16} style={{color:'#c2602a'}}/> Issue with order? WhatsApp us within 48 hrs — we'll fix it</div>
+                  <div className="pdp-info-item"><Truck size={16} style={{color:'#c2602a'}} aria-hidden="true"/> Pan-India delivery · Live rates at checkout</div>
+                  <div className="pdp-info-item"><Shield size={16} style={{color:'#c2602a'}} aria-hidden="true"/> Secure payment via Razorpay (UPI, Cards, Net Banking)</div>
+                  <div className="pdp-info-item"><RefreshCw size={16} style={{color:'#c2602a'}} aria-hidden="true"/> Issue with order? WhatsApp us within 48 hrs — we'll fix it</div>
                 </div>
 
                 {/* Care instructions */}
                 <div className="pdp-care-section">
-                  <h3 className="pdp-care-title">🧶 Care Instructions</h3>
+                  <h2 className="pdp-care-title">🧶 Care Instructions</h2>
                   <ul className="pdp-care-list">
                     {careList.map((item, i) => (
                       <li key={i} className="pdp-care-item">
-                        <span className="pdp-care-dot">✦</span>
+                        <span className="pdp-care-dot" aria-hidden="true">✦</span>
                         {item}
                       </li>
                     ))}
@@ -547,6 +683,19 @@ const ProductDetailPage = () => {
           </div>
         </div>
 
+        {/* SEO text — keyword rich, visible text Google can read */}
+        <div className="pdp-seo-text">
+          <p>
+            Handmade {product.name} by Besties Craft — crafted with love in Varanasi, India.
+            {displayCategory ? ` This ${displayCategory.toLowerCase()} is ` : ' '}
+            100% handmade with premium quality materials. Fully customisable — choose your
+            colour, add a personal message or name. Perfect as a handmade gift for birthdays,
+            Valentine's Day, friendships, weddings and festivals. Delivered pan-India.
+            Secure payment via Razorpay (UPI, Credit/Debit Card, Net Banking). Custom orders
+            welcome — WhatsApp +91 88107 76486.
+          </p>
+        </div>
+
         {/* Reviews */}
         <ReviewsSection productId={id} initialReviews={product.reviews||[]} initialRating={product.rating||0} user={user}/>
 
@@ -554,24 +703,36 @@ const ProductDetailPage = () => {
         {relatedProducts.length>0&&(
           <>
             <hr className="pdp-divider"/>
-            <div className="pdp-related-section">
+            <section className="pdp-related-section" aria-label="You may also like">
               <h2 className="pdp-related-title">✨ You May Also Like</h2>
               <div className="pdp-related-grid">
                 {relatedProducts.map((rp,i)=>(
-                  <motion.div key={rp._id} className="pdp-related-card" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:i*.08}}
-                    onClick={()=>{navigate(`/products/${rp._id}`);window.scrollTo(0,0);}}>
-                    <div className="pdp-related-img"><img src={rp.images?.[0]?.url?fixImageUrl(rp.images[0].url):PLACEHOLDER} alt={`Handmade ${rp.name} - Besties Craft`} loading="lazy" onError={e=>{e.target.src=PLACEHOLDER;}}/></div>
+                  <motion.article key={rp._id} className="pdp-related-card" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:i*.08}}
+                    onClick={()=>{navigate(`/products/${rp._id}`);window.scrollTo(0,0);}}
+                    aria-label={`View ${rp.name}`}
+                  >
+                    <div className="pdp-related-img">
+                      <img
+                        src={rp.images?.[0]?.url?fixImageUrl(rp.images[0].url):PLACEHOLDER}
+                        alt={`Handmade ${rp.name} — Besties Craft India`}
+                        loading="lazy"
+                        width="400"
+                        height="180"
+                        onError={e=>{e.target.src=PLACEHOLDER;}}
+                      />
+                    </div>
                     <div className="pdp-related-body">
-                      {rp.colors?.length>0&&<div className="pdp-related-colors">{rp.colors.slice(0,5).map(c=><div key={c} className="pdp-color-dot" style={{background:COLOR_MAP[c]||'#ccc'}} title={c}/>)}</div>}
+                      {rp.colors?.length>0&&<div className="pdp-related-colors" aria-label={`Colours: ${rp.colors.join(', ')}`}>{rp.colors.slice(0,5).map(c=><div key={c} className="pdp-color-dot" style={{background:COLOR_MAP[c]||'#ccc'}} title={c}/>)}</div>}
                       <div className="pdp-related-name">{rp.name}</div>
                       <div className="pdp-related-price">₹{parseFloat(rp.base_price).toLocaleString('en-IN')}</div>
                     </div>
-                  </motion.div>
+                  </motion.article>
                 ))}
               </div>
-            </div>
+            </section>
           </>
         )}
+
         <Footer/>
       </div>
     </>
@@ -579,7 +740,7 @@ const ProductDetailPage = () => {
 };
 
 const st = {
-  backBtn:        {display:'inline-flex',alignItems:'center',gap:'.4rem',background:'none',border:'none',cursor:'pointer',color:'#666',fontSize:'.9rem',fontFamily:'sans-serif',marginBottom:'2rem',padding:0},
+  backBtn:        {display:'inline-flex',alignItems:'center',gap:'.4rem',background:'none',border:'none',cursor:'pointer',color:'#666',fontSize:'.9rem',fontFamily:'sans-serif',marginBottom:'1.25rem',padding:0},
   mainImgWrap:    {borderRadius:'16px',overflow:'hidden',background:'#fff',border:'1px solid #e8e4df',aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center'},
   mainImg:        {width:'100%',height:'100%',objectFit:'cover',display:'block'},
   thumbRow:       {display:'flex',gap:'.5rem',flexWrap:'wrap'},

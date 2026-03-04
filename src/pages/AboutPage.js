@@ -2,18 +2,57 @@ import React from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Heart, Sparkles, Phone, Mail, Shield, Leaf, Award, Clock } from 'lucide-react';
-import usePageMeta from '@/hooks/usePageMeta'; // ← NEW
+import usePageMeta from '@/hooks/usePageMeta';
 
 const AboutPage = () => {
-  // ── NEW: SEO meta tags ──
   usePageMeta({
-    title: 'About Us — Besties Craft | Handmade Crochet with Love in India',
-    description: 'Learn the story behind Besties Craft — handmade crochet bracelets, woollen flowers, keychains and gifting items crafted with love in India. 100% handmade, customisable.',
+    title: 'About Us — Besties Craft | Handmade Crochet with Love in Varanasi, India',
+    description:
+      'Learn the story behind Besties Craft — handmade crochet bracelets, woollen flowers, keychains and gifting items crafted with love in Varanasi, India. 100% handmade, fully customisable, pan-India delivery.',
     url: '/about',
+  });
+
+  // ── Inline structured data for the About page ──────────────────
+  const aboutSchema = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'AboutPage',
+    name: 'About Besties Craft',
+    url: 'https://www.bestiescraft.in/about',
+    description:
+      'Besties Craft makes 100% handmade crochet bracelets, woollen flowers, keychains, hair accessories and gifting items in Varanasi, India. Custom orders welcome. Pan-India delivery.',
+    mainEntity: {
+      '@type': 'Organization',
+      name: 'Besties Craft',
+      url: 'https://www.bestiescraft.in',
+      foundingDate: '2025',
+      description:
+        'Handmade crochet and woollen products crafted with love in Varanasi, Uttar Pradesh, India.',
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: 'Varanasi',
+        addressRegion: 'Uttar Pradesh',
+        postalCode: '221007',
+        addressCountry: 'IN',
+      },
+      contactPoint: {
+        '@type': 'ContactPoint',
+        telephone: '+91-8810776486',
+        contactType: 'customer service',
+        email: 'bestiescraft1434@gmail.com',
+        areaServed: 'IN',
+        availableLanguage: ['English', 'Hindi'],
+      },
+    },
   });
 
   return (
     <>
+      {/* Inline JSON-LD for this page */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: aboutSchema }}
+      />
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap');
 
@@ -79,7 +118,7 @@ const AboutPage = () => {
         .about-hero-sub {
           font-size: 1.05rem;
           color: rgba(255,255,255,0.65);
-          max-width: 520px;
+          max-width: 560px;
           margin: 0 auto;
           line-height: 1.7;
           font-weight: 300;
@@ -189,6 +228,29 @@ const AboutPage = () => {
           margin: 0;
         }
 
+        /* ── Cities / Delivery strip ── */
+        .about-delivery {
+          background: var(--warm);
+          border-radius: 18px;
+          border: 1px solid var(--sand);
+          padding: 1.75rem 2rem;
+          margin-bottom: 2.5rem;
+          text-align: center;
+        }
+        .about-delivery h3 {
+          font-family: 'Playfair Display', serif;
+          font-size: 1.15rem;
+          font-weight: 700;
+          color: var(--dark);
+          margin: 0 0 0.75rem;
+        }
+        .about-delivery p {
+          font-size: 0.85rem;
+          color: var(--muted);
+          line-height: 1.75;
+          margin: 0;
+        }
+
         /* ── Contact card ── */
         .about-contact {
           background: linear-gradient(135deg, var(--dark) 0%, #3d2015 100%);
@@ -289,69 +351,94 @@ const AboutPage = () => {
       <div className="about-page">
         <Navbar />
 
-        {/* Hero */}
-        <div className="about-hero">
-          <div className="about-hero-tag">✦ Handcrafted with love</div>
-          <h1>Made by Hand,<br /><em>Sent with Heart</em></h1>
+        {/* Hero — H1 contains primary keyword */}
+        <header className="about-hero">
+          <div className="about-hero-tag">✦ Handcrafted with love in Varanasi, India</div>
+          <h1>
+            Handmade Crochet &amp; Woollen Gifts,<br />
+            <em>Crafted with Heart</em>
+          </h1>
           <p className="about-hero-sub">
-            Every stitch tells a story. Every product carries the warmth of hands that genuinely care about what they create.
+            Every stitch tells a story. Every handmade crochet bracelet, flower and gifting item
+            carries the warmth of hands that genuinely care about what they create — delivered
+            pan-India from Varanasi.
           </p>
-        </div>
+        </header>
 
-        <div className="about-main">
+        <main className="about-main">
 
           {/* Story */}
-          <div className="about-story">
+          <article className="about-story">
             <div className="about-section-label"><span />Our Story</div>
-            <h2>Where it all began</h2>
+            <h2>Where it all began — Besties Craft, Varanasi</h2>
             <p>
-              Besties Craft started as a passion project — two friends, a shared love of handmade things, and the belief that something made by hand carries a feeling that no machine can replicate. What began in quiet afternoons with yarn and needles has grown into a small business built entirely on craft, care, and the joy of creating something beautiful for someone else.
+              Besties Craft started as a passion project in Varanasi, Uttar Pradesh — two
+              friends, a shared love of handmade things, and the belief that something made by
+              hand carries a feeling that no machine can replicate. What began in quiet
+              afternoons with yarn and needles has grown into a small business built entirely
+              on craft, care, and the joy of creating something beautiful for someone else.
               <br /><br />
-              Every bracelet, keychain, hair accessory, and gifting piece you see here is made by hand — no factories, no shortcuts. Just skill, patience, and a whole lot of love poured into every order.
+              Every crochet bracelet, keychain, hair accessory, woollen flower and gifting
+              piece you see here is made by hand — no factories, no shortcuts. Just skill,
+              patience, and a whole lot of love poured into every order, shipped anywhere in
+              India.
             </p>
-          </div>
+          </article>
 
           {/* Values */}
-          <div className="about-values">
+          <section className="about-values" aria-label="Our values">
             <div className="about-value-card">
-              <div className="about-value-icon"><Heart size={20} /></div>
-              <h3>Truly Handmade</h3>
-              <p>Every single product is crafted by hand. No mass production — just artisan skill and attention to detail in every piece.</p>
+              <div className="about-value-icon"><Heart size={20} aria-hidden="true" /></div>
+              <h3>Truly Handmade Crochet</h3>
+              <p>Every single product is handcrafted. No mass production — just artisan skill and attention to detail in every piece of crochet or woollen craft.</p>
             </div>
             <div className="about-value-card">
-              <div className="about-value-icon"><Sparkles size={20} /></div>
-              <h3>Customisable</h3>
-              <p>We make products tailored to you. Choose your colours, share your preferences, and we'll create something made just for you.</p>
+              <div className="about-value-icon"><Sparkles size={20} aria-hidden="true" /></div>
+              <h3>Fully Customisable Orders</h3>
+              <p>We make crochet products tailored to you. Choose your colours, share your preferences, and we'll create something made just for you — perfect for gifts.</p>
             </div>
             <div className="about-value-card">
-              <div className="about-value-icon"><Leaf size={20} /></div>
-              <h3>Quality Materials</h3>
-              <p>We use premium quality materials that are durable, vibrant, and made to last — because you deserve the best.</p>
+              <div className="about-value-icon"><Leaf size={20} aria-hidden="true" /></div>
+              <h3>Premium Quality Materials</h3>
+              <p>We use premium quality woollen and crochet materials that are durable, vibrant, and made to last — because you deserve the best handmade gift India has to offer.</p>
             </div>
             <div className="about-value-card">
-              <div className="about-value-icon"><Award size={20} /></div>
-              <h3>Made with Care</h3>
-              <p>Each order is packed and sent with care. We treat every customer's order as if it were a gift to someone we love.</p>
+              <div className="about-value-icon"><Award size={20} aria-hidden="true" /></div>
+              <h3>Packed with Care</h3>
+              <p>Each order is packed and sent with care for delivery across India. We treat every customer's order as if it were a gift to someone we love.</p>
             </div>
-          </div>
+          </section>
+
+          {/* Delivery coverage — boosts local SEO */}
+          <aside className="about-delivery">
+            <h3>Pan-India Delivery — We Ship Everywhere 🚚</h3>
+            <p>
+              We deliver handmade crochet products across India — Mumbai, Delhi, Bangalore,
+              Chennai, Hyderabad, Kolkata, Pune, Ahmedabad, Jaipur, Lucknow, Surat, Indore,
+              Chandigarh, Kochi, Nagpur, Vadodara, Noida, Gurgaon, Dehradun, Mysore,
+              Udaipur, Jodhpur and every other city and town in India.
+              Enter your pincode at checkout for live delivery rates and estimated time.
+            </p>
+          </aside>
 
           {/* Contact */}
-          <div className="about-contact">
+          <section className="about-contact" aria-label="Contact Besties Craft">
             <div className="about-section-label"><span />Get in Touch</div>
             <h2>We'd love to hear from you</h2>
             <p className="about-contact-sub">
-              Have a question, a custom order request, or just want to say hello? Reach out — we're always happy to help.
+              Have a question, a custom crochet order request, or just want to say hello?
+              Reach out — we're always happy to help customers across India.
             </p>
             <div className="about-contact-items">
-              <a className="about-contact-item" href="tel:+918810776486">
-                <div className="about-contact-item-icon"><Phone size={18} /></div>
+              <a className="about-contact-item" href="tel:+918810776486" aria-label="Call or WhatsApp Besties Craft">
+                <div className="about-contact-item-icon"><Phone size={18} aria-hidden="true" /></div>
                 <div className="about-contact-item-text">
                   <span className="about-contact-item-label">Call or WhatsApp</span>
                   <span className="about-contact-item-value">+91 88107 76486</span>
                 </div>
               </a>
-              <a className="about-contact-item" href="mailto:bestiescraft1434@gmail.com">
-                <div className="about-contact-item-icon"><Mail size={18} /></div>
+              <a className="about-contact-item" href="mailto:bestiescraft1434@gmail.com" aria-label="Email Besties Craft">
+                <div className="about-contact-item-icon"><Mail size={18} aria-hidden="true" /></div>
                 <div className="about-contact-item-text">
                   <span className="about-contact-item-label">Email us</span>
                   <span className="about-contact-item-value">bestiescraft1434@gmail.com</span>
@@ -359,12 +446,12 @@ const AboutPage = () => {
               </a>
             </div>
             <div className="about-contact-note">
-              <Clock size={13} />
+              <Clock size={13} aria-hidden="true" />
               We typically respond within 24 hours on business days.
             </div>
-          </div>
+          </section>
 
-        </div>
+        </main>
 
         <Footer />
       </div>

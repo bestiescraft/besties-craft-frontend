@@ -30,10 +30,10 @@ export function normalizeCategory(raw) {
 }
 
 const FEATURES = [
-  { icon: <Heart size={22} />,    title: 'Made with Love',     desc: 'Every piece is handcrafted with care and attention to detail.' },
-  { icon: <Sparkles size={22} />, title: '100% Handmade',      desc: 'Authentic handmade goods — no factories, no mass production.' },
-  { icon: <Package size={22} />,  title: 'Pan-India Delivery', desc: 'We ship to every corner of India with love-packed packaging.' },
-  { icon: <Star size={22} />,     title: 'Quality Guaranteed', desc: 'Premium materials, skilled hands — quality you can feel in every stitch.' },
+  { icon: <Heart size={22} aria-hidden="true" />,    title: 'Made with Love',     desc: 'Every handmade crochet piece is crafted with care and genuine attention to detail.' },
+  { icon: <Sparkles size={22} aria-hidden="true" />, title: '100% Handmade',      desc: 'Authentic handmade crochet goods — no factories, no mass production, only skilled hands.' },
+  { icon: <Package size={22} aria-hidden="true" />,  title: 'Pan-India Delivery', desc: 'We ship handmade gifts to every corner of India with love-packed, secure packaging.' },
+  { icon: <Star size={22} aria-hidden="true" />,     title: 'Quality Guaranteed', desc: 'Premium woollen and crochet materials, skilled hands — quality you can feel in every stitch.' },
 ];
 
 const GIFTING_OCCASIONS = [
@@ -50,37 +50,64 @@ const GIFTING_OCCASIONS = [
 const FAQS = [
   {
     q: 'Are all products 100% handmade?',
-    a: 'Yes! Every single item at Besties Craft is handmade by skilled artisans. No factories, no mass production — each piece is crafted individually with love and attention to detail.',
+    a: 'Yes! Every single item at Besties Craft is handmade by skilled artisans in Varanasi, India. No factories, no mass production — each piece is crafted individually with love and attention to detail.',
   },
   {
-    q: 'Can I customise my order — colours, names, size?',
-    a: 'Absolutely! Since everything is handmade, customisation is easy. On any product page, you\'ll find a customisation box where you can specify colours, add a name, mention the occasion, or any special instructions. We love personalised orders!',
+    q: 'Can I customise my crochet order — colours, names, size?',
+    a: "Absolutely! Since everything is handmade, customisation is easy. On any product page, you'll find a customisation box where you can specify colours, add a name, mention the occasion, or any special instructions. We love personalised handmade orders!",
   },
   {
-    q: 'How long does delivery take?',
-    a: 'Most orders are delivered within 4–7 business days across India. You\'ll receive live shipping rates and estimated delivery dates at checkout. Once shipped, you\'ll get tracking details.',
+    q: 'How long does delivery take across India?',
+    a: 'Most orders are delivered within 4–7 business days across India — Mumbai, Delhi, Bangalore, Chennai, Hyderabad, Kolkata, Pune, Ahmedabad, Jaipur, Lucknow and everywhere else. You\'ll receive live shipping rates and estimated delivery dates at checkout.',
   },
   {
     q: 'What payment methods do you accept?',
     a: 'We accept all major payment methods via Razorpay — UPI (GPay, PhonePe, Paytm), Credit/Debit Cards, Net Banking, and Wallets. All payments are 100% secure.',
   },
   {
-    q: 'How do I track my order?',
+    q: 'How do I track my handmade order?',
     a: 'After your order is shipped, visit our Track Order page (in the navbar) and enter your order ID. You can also WhatsApp us at +91 8810776486 for real-time updates.',
   },
   {
-    q: 'Do you ship all over India?',
-    a: 'Yes! We deliver pan-India. Enter your pincode at checkout to see live shipping rates and estimated delivery time for your location.',
+    q: 'Do you ship handmade crochet products all over India?',
+    a: 'Yes! We deliver pan-India — Mumbai, Delhi, Bangalore, Chennai, Hyderabad, Kolkata, Pune, Ahmedabad, Jaipur, Lucknow, Surat, Indore, Chandigarh, Kochi, Nagpur, Vadodara, Noida, Gurgaon, Dehradun, Mysore, Udaipur, Jodhpur, Varanasi and everywhere else. Enter your pincode at checkout for live rates.',
   },
   {
     q: 'What if I receive a damaged or wrong product?',
-    a: 'We take quality very seriously. If you receive a damaged or incorrect item, please WhatsApp us within 48 hours with a photo. We\'ll make it right immediately — replacement or full refund.',
+    a: "We take quality very seriously. If you receive a damaged or incorrect handmade item, please WhatsApp us within 48 hours with a photo. We'll make it right immediately — replacement or full refund.",
   },
 ];
 
 const PLACEHOLDER = 'https://placehold.co/400x400/e8e0d5/a09080?text=Craft';
 
-const LogoEHero = () => (
+// FAQ schema — injected as JSON-LD
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQS.map(faq => ({
+    '@type': 'Question',
+    name: faq.q,
+    acceptedAnswer: { '@type': 'Answer', text: faq.a },
+  })),
+};
+
+// Sitelinks searchbox schema
+const sitelinksSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Besties Craft',
+  url: 'https://www.bestiescraft.in',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: 'https://www.bestiescraft.in/products?search={search_term_string}',
+    },
+    'query-input': 'required name=search_term_string',
+  },
+};
+
+const LogoHero = () => (
   <motion.div
     initial={{ opacity: 0, y: -8 }}
     animate={{ opacity: 1, y: 0 }}
@@ -89,7 +116,7 @@ const LogoEHero = () => (
   >
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
       <div style={{ flex: 1, maxWidth: 56, height: 1, background: 'linear-gradient(90deg, transparent, rgba(194,96,42,0.6))' }} />
-      <span style={{ color: '#c2602a', fontSize: '0.55rem', letterSpacing: '4px' }}>✦ ✦ ✦</span>
+      <span style={{ color: '#c2602a', fontSize: '0.55rem', letterSpacing: '4px' }} aria-hidden="true">✦ ✦ ✦</span>
       <div style={{ flex: 1, maxWidth: 56, height: 1, background: 'linear-gradient(90deg, rgba(194,96,42,0.6), transparent)' }} />
     </div>
     <div style={{ fontFamily: "'Cormorant Garamond', 'Playfair Display', Georgia, serif", fontSize: 'clamp(2.2rem, 5vw, 3.4rem)', fontWeight: 700, letterSpacing: '0.04em', lineHeight: 1, color: '#2c1810', whiteSpace: 'nowrap' }}>
@@ -98,7 +125,7 @@ const LogoEHero = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
       <div style={{ width: 36, height: 1, background: 'rgba(194,96,42,0.35)' }} />
       <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '0.48rem', letterSpacing: '0.28em', color: 'rgba(44,24,16,0.4)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-        Handcrafted in India · Est. 2025
+        Handcrafted in Varanasi, India · Est. 2025
       </span>
       <div style={{ width: 36, height: 1, background: 'rgba(194,96,42,0.35)' }} />
     </div>
@@ -113,17 +140,20 @@ function FAQItem({ faq, index }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
       style={{ borderBottom: '1px solid #e8dfd0', overflow: 'hidden' }}
+      itemScope
+      itemType="https://schema.org/Question"
     >
       <button
         onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
         style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '1.25rem 0', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
-        <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1rem', fontWeight: 600, color: '#2c1810', lineHeight: 1.4 }}>{faq.q}</span>
-        <span style={{ color: '#c2602a', flexShrink: 0 }}>{open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</span>
+        <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1rem', fontWeight: 600, color: '#2c1810', lineHeight: 1.4 }} itemProp="name">{faq.q}</span>
+        <span style={{ color: '#c2602a', flexShrink: 0 }} aria-hidden="true">{open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</span>
       </button>
       {open && (
-        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} transition={{ duration: 0.2 }}>
-          <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '0.92rem', color: '#5c3d2e', lineHeight: 1.75, margin: '0 0 1.25rem', paddingRight: '2rem' }}>{faq.a}</p>
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} transition={{ duration: 0.2 }} itemScope itemType="https://schema.org/Answer" itemProp="acceptedAnswer">
+          <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '0.92rem', color: '#5c3d2e', lineHeight: 1.75, margin: '0 0 1.25rem', paddingRight: '2rem' }} itemProp="text">{faq.a}</p>
         </motion.div>
       )}
     </motion.div>
@@ -136,8 +166,8 @@ export default function HomePage() {
   const [loadingProducts, setLoadingProducts] = useState(true);
 
   usePageMeta({
-    title: 'Besties Craft — Handmade Crochet Bracelets, Flowers & Gifting Items India',
-    description: 'Shop 100% handmade crochet bracelets, woollen flowers, keychains, hair accessories & gifting items. Custom orders accepted. Pan-India delivery. Crafted with love in Varanasi.',
+    title: 'Besties Craft — Handmade Crochet Bracelets, Woollen Flowers & Gifts India',
+    description: 'Shop 100% handmade crochet bracelets, woollen flowers, keychains, hair accessories & gifting items online in India. Custom orders accepted. Pan-India delivery. Crafted with love in Varanasi.',
     url: '/',
   });
 
@@ -156,6 +186,11 @@ export default function HomePage() {
 
   return (
     <>
+      {/* FAQ structured data */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
+      {/* Sitelinks searchbox */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(sitelinksSchema) }} />
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,600;0,700;1,400;1,700&family=Lato:wght@300;400;700&display=swap');
         :root {
@@ -203,7 +238,7 @@ export default function HomePage() {
 
         .hp-cats { padding: 5rem 2rem; background: var(--cream); }
         .hp-cats-grid { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; }
-        .hp-cat-card { background: var(--warm); border-radius: 18px; padding: 1.6rem 1rem 1.3rem; text-align: center; cursor: pointer; border: 1.5px solid transparent; transition: all 0.22s; font-family: 'Lato', sans-serif; }
+        .hp-cat-card { background: var(--warm); border-radius: 18px; padding: 1.6rem 1rem 1.3rem; text-align: center; cursor: pointer; border: 1.5px solid transparent; transition: all 0.22s; font-family: 'Lato', sans-serif; text-decoration: none; display: block; }
         .hp-cat-card:hover { border-color: var(--terracotta); background: #fff; transform: translateY(-5px); box-shadow: 0 12px 32px rgba(194,96,42,0.13); }
         .hp-cat-emoji { font-size: 2.2rem; display: block; margin-bottom: 0.65rem; }
         .hp-cat-name  { font-size: 0.82rem; font-weight: 700; color: var(--brown); display: block; margin-bottom: 0.25rem; }
@@ -271,6 +306,12 @@ export default function HomePage() {
         .hp-wa-btn { display: inline-flex; align-items: center; gap: 0.6rem; background: #25d366; color: #fff; padding: 0.9rem 2rem; border-radius: 50px; font-size: 0.95rem; font-weight: 700; border: none; cursor: pointer; font-family: 'Lato', sans-serif; text-decoration: none; transition: background 0.2s, transform 0.15s; }
         .hp-wa-btn:hover { background: #1ebe5d; transform: translateY(-2px); }
 
+        /* SEO city/keyword block */
+        .hp-seo-cities { padding: 2.5rem 2rem; background: var(--cream); border-top: 1px solid var(--sand); }
+        .hp-seo-cities-inner { max-width: 1180px; margin: 0 auto; }
+        .hp-seo-cities h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 1.1rem; font-weight: 700; color: var(--dark); margin: 0 0 0.75rem; }
+        .hp-seo-cities p { font-size: 0.82rem; color: var(--muted); line-height: 1.85; margin: 0; }
+
         @media (max-width: 1024px) {
           .hp-cats-grid     { grid-template-columns: repeat(3, 1fr); }
           .hp-products-grid { grid-template-columns: repeat(2, 1fr); }
@@ -297,61 +338,66 @@ export default function HomePage() {
         <Navbar />
 
         {/* ── HERO ── */}
-        <section className="hp-hero">
+        <section className="hp-hero" aria-label="Hero section">
           <div className="hp-hero-inner">
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-              <LogoEHero />
-              <div className="hp-hero-tags">
-                <span className="hp-hero-tag hp-tag-primary"><Sparkles size={12} /> Handcrafted in India</span>
+              <LogoHero />
+              <div className="hp-hero-tags" aria-hidden="true">
+                <span className="hp-hero-tag hp-tag-primary"><Sparkles size={12} /> Handcrafted in Varanasi, India</span>
                 <span className="hp-hero-tag hp-tag-secondary">🧶 Since 2025</span>
                 <span className="hp-hero-tag hp-tag-tertiary">✦ 100% Handmade</span>
               </div>
+
+              {/* H1 — primary keyword phrase Google will index */}
               <h1 className="hp-hero-title">
-                Crafted with hands,<br />gifted with <em>love</em>
+                Handmade Crochet &amp; Woollen Gifts,<br />
+                Crafted with <em>Love</em> in India
               </h1>
+
               <p className="hp-hero-sub">
-                Discover our collection of handmade crochet bracelets, flowers, keychains, hair
-                accessories and gifting items — each piece lovingly crafted by skilled artisans in Varanasi.
+                Discover handmade crochet bracelets, woollen flowers, keychains, hair
+                accessories and gifting items — each piece lovingly handcrafted by skilled
+                artisans in Varanasi and delivered pan-India.
               </p>
               <div className="hp-hero-btns">
-                <button className="hp-btn-primary" onClick={() => navigate('/products')}>
-                  Shop Now <ArrowRight size={16} />
+                <button className="hp-btn-primary" onClick={() => navigate('/products')} aria-label="Shop all handmade crochet products">
+                  Shop Now <ArrowRight size={16} aria-hidden="true" />
                 </button>
-                <button className="hp-btn-outline" onClick={() => navigate('/about')}>
+                <button className="hp-btn-outline" onClick={() => navigate('/about')} aria-label="Read our story">
                   Our Story
                 </button>
               </div>
             </motion.div>
 
-            <motion.div className="hp-hero-imgs" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.2 }}>
+            <motion.div className="hp-hero-imgs" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.2 }} aria-hidden="true">
               <div className="hp-hero-img-main">
                 {featured[0]?.images?.[0]?.url
-                  ? <img src={featured[0].images[0].url} alt={`Handmade crochet - ${featured[0].name}`} loading="lazy" onError={e => { e.target.parentNode.innerHTML = '<div class="hp-hero-img-placeholder">🌸</div>'; }} />
-                  : <div className="hp-hero-img-placeholder">🌸</div>}
+                  ? <img src={featured[0].images[0].url} alt={`Handmade crochet ${featured[0].name} — Besties Craft India`} loading="eager" width="400" height="480" onError={e => { e.target.parentNode.innerHTML = '<div class="hp-hero-img-placeholder">🌸</div>'; }} />
+                  : <div className="hp-hero-img-placeholder" aria-hidden="true">🌸</div>}
               </div>
               <div className="hp-hero-img-sm">
                 {featured[1]?.images?.[0]?.url
-                  ? <img src={featured[1].images[0].url} alt={`Handmade crochet - ${featured[1].name}`} loading="lazy" onError={e => { e.target.parentNode.innerHTML = '<div class="hp-hero-img-placeholder">📿</div>'; }} />
-                  : <div className="hp-hero-img-placeholder">📿</div>}
+                  ? <img src={featured[1].images[0].url} alt={`Handmade crochet ${featured[1].name} — Besties Craft India`} loading="lazy" width="200" height="240" onError={e => { e.target.parentNode.innerHTML = '<div class="hp-hero-img-placeholder">📿</div>'; }} />
+                  : <div className="hp-hero-img-placeholder" aria-hidden="true">📿</div>}
               </div>
               <div className="hp-hero-img-sm">
                 {featured[2]?.images?.[0]?.url
-                  ? <img src={featured[2].images[0].url} alt={`Handmade crochet - ${featured[2].name}`} loading="lazy" onError={e => { e.target.parentNode.innerHTML = '<div class="hp-hero-img-placeholder">🎀</div>'; }} />
-                  : <div className="hp-hero-img-placeholder">🎀</div>}
+                  ? <img src={featured[2].images[0].url} alt={`Handmade crochet ${featured[2].name} — Besties Craft India`} loading="lazy" width="200" height="240" onError={e => { e.target.parentNode.innerHTML = '<div class="hp-hero-img-placeholder">🎀</div>'; }} />
+                  : <div className="hp-hero-img-placeholder" aria-hidden="true">🎀</div>}
               </div>
             </motion.div>
           </div>
         </section>
 
         {/* ── TRUST BADGES ── */}
-        <div className="hp-trust">
+        <div className="hp-trust" aria-label="Trust signals">
           <div className="hp-trust-inner">
             {[
-              { icon: <Shield size={16} />, text: 'Secure Payments via Razorpay' },
-              { icon: <Truck size={16} />, text: 'Pan-India Delivery' },
-              { icon: <Heart size={16} />, text: '100% Handmade' },
-              { icon: <Star size={16} />, text: 'Customisable Orders' },
-              { icon: <MessageCircle size={16} />, text: 'WhatsApp Support' },
+              { icon: <Shield size={16} aria-hidden="true" />, text: 'Secure Payments via Razorpay' },
+              { icon: <Truck size={16} aria-hidden="true" />, text: 'Pan-India Delivery' },
+              { icon: <Heart size={16} aria-hidden="true" />, text: '100% Handmade Crochet' },
+              { icon: <Star size={16} aria-hidden="true" />, text: 'Customisable Orders' },
+              { icon: <MessageCircle size={16} aria-hidden="true" />, text: 'WhatsApp Support' },
             ].map((item, i) => (
               <div key={i} className="hp-trust-item">
                 <span className="hp-trust-icon">{item.icon}</span>
@@ -362,13 +408,13 @@ export default function HomePage() {
         </div>
 
         {/* ── STATS ── */}
-        <div className="hp-stats">
+        <div className="hp-stats" aria-label="Our numbers">
           <div className="hp-stats-inner">
             {[
-              { num: '500+', label: 'Happy Customers' },
-              { num: '100%', label: 'Handmade' },
-              { num: '50+',  label: 'Unique Designs' },
-              { num: '✦',   label: 'Customisable Orders' },
+              { num: '500+', label: 'Happy Customers Across India' },
+              { num: '100%', label: 'Handmade Products' },
+              { num: '50+',  label: 'Unique Crochet Designs' },
+              { num: '✦',   label: 'Custom Orders Welcome' },
             ].map((s, i) => (
               <motion.div key={i} className="hp-stat" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * i + 0.4 }}>
                 <span className="hp-stat-num">{s.num}</span>
@@ -378,38 +424,43 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ── CATEGORIES ── */}
-        <section className="hp-cats">
+        {/* ── CATEGORIES — use <nav> for SEO internal links ── */}
+        <section className="hp-cats" aria-labelledby="cats-heading">
           <div style={{ maxWidth: 1180, margin: '0 auto' }}>
             <div className="hp-sec-head">
               <span className="hp-sec-tag">Browse by Category</span>
-              <h2 className="hp-sec-title">What are you looking for?</h2>
-              <p className="hp-sec-sub">From crochet bracelets to gifting items — find your perfect handcrafted piece.</p>
+              <h2 id="cats-heading" className="hp-sec-title">Shop Handmade Crochet by Category</h2>
+              <p className="hp-sec-sub">From crochet bracelets to handmade gifting items — find your perfect handcrafted piece, made in India.</p>
             </div>
-            <div className="hp-cats-grid">
+            <nav aria-label="Product categories" className="hp-cats-grid">
               {CATEGORIES.map((cat, i) => (
-                <motion.div key={cat.value} className="hp-cat-card"
+                <motion.a
+                  key={cat.value}
+                  href={`/products?category=${cat.value}`}
+                  className="hp-cat-card"
                   initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}
-                  onClick={() => navigate(`/products?category=${cat.value}`)}>
-                  <span className="hp-cat-emoji">{cat.emoji}</span>
+                  onClick={e => { e.preventDefault(); navigate(`/products?category=${cat.value}`); }}
+                  aria-label={`Shop handmade ${cat.name} — Besties Craft India`}
+                >
+                  <span className="hp-cat-emoji" aria-hidden="true">{cat.emoji}</span>
                   <span className="hp-cat-name">{cat.name}</span>
                   <span className="hp-cat-desc">{cat.desc}</span>
-                </motion.div>
+                </motion.a>
               ))}
-            </div>
+            </nav>
           </div>
         </section>
 
         {/* ── FEATURED PRODUCTS ── */}
-        <section className="hp-featured">
+        <section className="hp-featured" aria-labelledby="featured-heading">
           <div style={{ maxWidth: 1180, margin: '0 auto' }}>
             <div className="hp-sec-head">
               <span className="hp-sec-tag">Just In</span>
-              <h2 className="hp-sec-title">New Arrivals</h2>
-              <p className="hp-sec-sub">Fresh handcrafted crochet pieces, made just for you.</p>
+              <h2 id="featured-heading" className="hp-sec-title">New Handmade Crochet Arrivals</h2>
+              <p className="hp-sec-sub">Fresh handcrafted crochet pieces from Varanasi, made just for you.</p>
             </div>
             {loadingProducts ? (
-              <p style={{ textAlign: 'center', color: '#aaa', fontFamily: 'sans-serif' }}>Loading products…</p>
+              <p style={{ textAlign: 'center', color: '#aaa', fontFamily: 'sans-serif' }}>Loading handmade products…</p>
             ) : featured.length === 0 ? (
               <p style={{ textAlign: 'center', color: '#aaa', fontFamily: 'sans-serif' }}>No products yet.</p>
             ) : (
@@ -417,41 +468,50 @@ export default function HomePage() {
                 {featured.map((product, i) => {
                   const displayCat = normalizeCategory(product.category);
                   return (
-                    <motion.div key={product._id} className="hp-prod-card"
+                    <motion.article key={product._id} className="hp-prod-card"
                       initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-                      onClick={() => navigate(`/products/${product._id}`)}>
+                      onClick={() => navigate(`/products/${product._id}`)}
+                      aria-label={`${product.name} — ₹${parseFloat(product.base_price).toLocaleString('en-IN')}`}
+                    >
                       <div className="hp-prod-img">
                         {product.images?.[0]?.url
-                          ? <img src={product.images[0].url} alt={`Handmade ${product.name} - Besties Craft`} loading="lazy" onError={e => { e.target.src = PLACEHOLDER; }} />
-                          : <div className="hp-prod-img-placeholder">🌸</div>}
+                          ? <img
+                              src={product.images[0].url}
+                              alt={`Handmade ${product.name} — ${displayCat || 'crochet product'} by Besties Craft India`}
+                              loading="lazy"
+                              width="400"
+                              height="220"
+                              onError={e => { e.target.src = PLACEHOLDER; }}
+                            />
+                          : <div className="hp-prod-img-placeholder" aria-hidden="true">🌸</div>}
                       </div>
                       <div className="hp-prod-body">
                         {displayCat && <div className="hp-prod-cat">{displayCat}</div>}
                         <h3 className="hp-prod-name">{product.name}</h3>
                         <div>
                           <span className="hp-prod-price">₹{parseFloat(product.base_price).toLocaleString('en-IN')}</span>
-                          {product.in_stock && <span className="hp-prod-stock">● In Stock</span>}
+                          {product.in_stock && <span className="hp-prod-stock" aria-label="In Stock">● In Stock</span>}
                         </div>
                       </div>
-                    </motion.div>
+                    </motion.article>
                   );
                 })}
               </div>
             )}
             <div className="hp-view-all">
-              <button className="hp-btn-primary" onClick={() => navigate('/products')}>
-                View All Products <ArrowRight size={16} />
+              <button className="hp-btn-primary" onClick={() => navigate('/products')} aria-label="View all handmade crochet products">
+                View All Handmade Products <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>
           </div>
         </section>
 
         {/* ── WHY US ── */}
-        <section className="hp-why">
+        <section className="hp-why" aria-labelledby="why-heading">
           <div style={{ maxWidth: 1180, margin: '0 auto' }}>
             <div className="hp-sec-head">
               <span className="hp-sec-tag">Why Besties Craft</span>
-              <h2 className="hp-sec-title">Made differently, with love</h2>
+              <h2 id="why-heading" className="hp-sec-title">Handmade differently, crafted with love</h2>
             </div>
             <div className="hp-why-grid">
               {FEATURES.map((f, i) => (
@@ -466,23 +526,27 @@ export default function HomePage() {
         </section>
 
         {/* ── GIFTING OCCASIONS BANNER ── */}
-        <section className="hp-gifting">
+        <section className="hp-gifting" aria-labelledby="gifting-heading">
           <div className="hp-gifting-inner">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
               <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#e8a87c', display: 'block', marginBottom: '0.75rem', fontFamily: "'Lato', sans-serif" }}>Perfect For Every Occasion</span>
-              <h2 className="hp-gifting-title">The perfect <em>handmade gift</em> for everyone</h2>
+              <h2 id="gifting-heading" className="hp-gifting-title">
+                The perfect <em>handmade gift</em> for everyone in India
+              </h2>
               <p className="hp-gifting-sub">
-                Birthdays, weddings, anniversaries, festivals — our handmade crochet gifts make every occasion extra special. Fully customisable with personal touches.
+                Birthdays, weddings, anniversaries, Valentine's Day, festivals — our handmade
+                crochet gifts make every occasion extra special. Fully customisable with personal
+                touches. Delivered anywhere in India.
               </p>
-              <button className="hp-btn-primary" style={{ background: '#c2602a' }} onClick={() => navigate('/products?category=gifting-items')}>
-                Shop Gifting Items <ArrowRight size={16} />
+              <button className="hp-btn-primary" style={{ background: '#c2602a' }} onClick={() => navigate('/products?category=gifting-items')} aria-label="Shop handmade gifting items India">
+                Shop Handmade Gifting Items <ArrowRight size={16} aria-hidden="true" />
               </button>
             </motion.div>
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-              <div className="hp-occasions-grid">
+              <div className="hp-occasions-grid" role="list">
                 {GIFTING_OCCASIONS.map((occ, i) => (
-                  <div key={i} className="hp-occasion-card" onClick={() => navigate('/products?category=gifting-items')}>
-                    <span className="hp-occasion-emoji">{occ.emoji}</span>
+                  <div key={i} className="hp-occasion-card" role="listitem" onClick={() => navigate('/products?category=gifting-items')} aria-label={`Handmade gift for ${occ.label}`}>
+                    <span className="hp-occasion-emoji" aria-hidden="true">{occ.emoji}</span>
                     <span className="hp-occasion-label">{occ.label}</span>
                   </div>
                 ))}
@@ -492,43 +556,69 @@ export default function HomePage() {
         </section>
 
         {/* ── WHATSAPP CUSTOM ORDERS ── */}
-        <section className="hp-whatsapp">
+        <section className="hp-whatsapp" aria-labelledby="whatsapp-heading">
           <div className="hp-wa-inner">
-            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>💬</div>
-            <h2 className="hp-wa-title">Want something custom?</h2>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }} aria-hidden="true">💬</div>
+            <h2 id="whatsapp-heading" className="hp-wa-title">Want a custom handmade crochet order?</h2>
             <p className="hp-wa-sub">
-              Have a special design in mind? Want a name, specific colour, or a unique pattern? We love custom orders! Just WhatsApp us and we'll make it happen.
+              Have a special crochet design in mind? Want a name, specific colour, or a unique
+              pattern? We love custom handmade orders from across India! Just WhatsApp us and
+              we'll make it happen.
             </p>
-            <a href="https://wa.me/918810776486?text=Hi! I'd like to place a custom order" className="hp-wa-btn" target="_blank" rel="noopener noreferrer">
-              <MessageCircle size={18} /> Chat on WhatsApp
+            <a href="https://wa.me/918810776486?text=Hi! I'd like to place a custom crochet order" className="hp-wa-btn" target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp for custom crochet orders">
+              <MessageCircle size={18} aria-hidden="true" /> Chat on WhatsApp
             </a>
           </div>
         </section>
 
         {/* ── FAQ ── */}
-        <section className="hp-faq">
+        <section className="hp-faq" aria-labelledby="faq-heading" itemScope itemType="https://schema.org/FAQPage">
           <div className="hp-faq-inner">
             <div className="hp-sec-head">
               <span className="hp-sec-tag">Got Questions?</span>
-              <h2 className="hp-sec-title">Frequently Asked Questions</h2>
-              <p className="hp-sec-sub">Everything you need to know about ordering from Besties Craft.</p>
+              <h2 id="faq-heading" className="hp-sec-title">Frequently Asked Questions</h2>
+              <p className="hp-sec-sub">Everything you need to know about ordering handmade crochet products from Besties Craft.</p>
             </div>
             {FAQS.map((faq, i) => <FAQItem key={i} faq={faq} index={i} />)}
           </div>
         </section>
 
         {/* ── CTA ── */}
-        <section className="hp-cta">
+        <section className="hp-cta" aria-labelledby="cta-heading">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <h2 className="hp-cta-title">Every piece tells a <em>story</em></h2>
+            <h2 id="cta-heading" className="hp-cta-title">Every handmade piece tells a <em>story</em></h2>
             <p className="hp-cta-sub">
-              Gift something truly special — handmade with heart, wrapped with love. Perfect for every occasion.
+              Gift something truly special — handmade crochet, crafted with heart in Varanasi,
+              wrapped with love. Perfect for every occasion across India.
             </p>
-            <button className="hp-cta-btn" onClick={() => navigate('/products')}>
-              Start Shopping <ArrowRight size={16} />
+            <button className="hp-cta-btn" onClick={() => navigate('/products')} aria-label="Start shopping handmade crochet products">
+              Start Shopping <ArrowRight size={16} aria-hidden="true" />
             </button>
           </motion.div>
         </section>
+
+        {/* ── SEO CITY / KEYWORD BLOCK ── */}
+        <div className="hp-seo-cities" aria-label="Delivery information">
+          <div className="hp-seo-cities-inner">
+            <h2>Handmade Crochet Products Delivered Across India</h2>
+            <p>
+              Besties Craft delivers 100% handmade crochet bracelets, woollen flowers, keychains,
+              hair accessories and gifting items to every city in India.
+              Buy handmade crochet products online in <strong>Mumbai</strong>, <strong>Delhi</strong>,{' '}
+              <strong>Bangalore</strong>, <strong>Chennai</strong>, <strong>Hyderabad</strong>,{' '}
+              <strong>Kolkata</strong>, <strong>Pune</strong>, <strong>Ahmedabad</strong>,{' '}
+              <strong>Jaipur</strong>, <strong>Lucknow</strong>, <strong>Surat</strong>,{' '}
+              <strong>Indore</strong>, <strong>Bhopal</strong>, <strong>Chandigarh</strong>,{' '}
+              <strong>Kochi</strong>, <strong>Nagpur</strong>, <strong>Vadodara</strong>,{' '}
+              <strong>Noida</strong>, <strong>Gurgaon</strong>, <strong>Dehradun</strong>,{' '}
+              <strong>Mysore</strong>, <strong>Udaipur</strong>, <strong>Jodhpur</strong>,{' '}
+              <strong>Navi Mumbai</strong> and everywhere else in India.
+              All products are handmade in Varanasi, Uttar Pradesh. Custom crochet orders accepted.
+              Secure payments via Razorpay (UPI, Cards, Net Banking).
+              WhatsApp us at <a href="tel:+918810776486" style={{ color: 'var(--terracotta)' }}>+91 88107 76486</a> for custom orders.
+            </p>
+          </div>
+        </div>
 
         <Footer />
       </div>
