@@ -1,32 +1,17 @@
+# robots.txt — bestiescraft.in
+# Updated: March 2026
+
 User-agent: *
 Allow: /
 
-# Block admin and private routes from Google index
+# Block admin/private paths if any
 Disallow: /admin/
-Disallow: /admin/login
-Disallow: /admin/dashboard
-Disallow: /admin/products
-Disallow: /admin/orders
-Disallow: /admin/customers
-Disallow: /checkout
-Disallow: /order-confirmation/
-Disallow: /orders
-Disallow: /cart
-Disallow: /account
-Disallow: /login
-Disallow: /signup
-Disallow: /reset-password
 Disallow: /api/
+Disallow: /.env
 
-# Prevent duplicate content from sort/search params
-Disallow: /*?sort=*
-Disallow: /*?search=*
+# Allow Google Image bot to index product images
+User-agent: Googlebot-Image
+Allow: /
 
-# Explicitly allow category pages (overrides the ?param rule above)
-Allow: /products?category=
-
-# Crawl-delay: be nice to server
-Crawl-delay: 1
-
-# Sitemap
-Sitemap: https://www.bestiescraft.in/sitemap.xml
+# Sitemap location
+Sitemap: https://bestiescraft.in/sitemap.xml
