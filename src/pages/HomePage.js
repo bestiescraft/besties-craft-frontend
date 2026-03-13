@@ -190,7 +190,6 @@ export default function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(sitelinksSchema) }} />
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=Lato:wght@300;400;700&display=optional');
         :root {
           --cream: #faf7f2; --warm: #f2ede4; --sand: #e8dfd0;
           --terracotta: #c2602a; --brown: #5c3d2e;

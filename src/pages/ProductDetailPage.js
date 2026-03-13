@@ -425,7 +425,6 @@ const ProductDetailPage = () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Lato:wght@300;400;700&display=swap');
         .pdp-page{background:#f8f7f4;min-height:100vh;display:flex;flex-direction:column;}
         .pdp-wrap{max-width:1100px;margin:0 auto;padding:2rem 1.5rem 4rem;width:100%;box-sizing:border-box;}
         .pdp-grid{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;}
