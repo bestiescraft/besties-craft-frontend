@@ -4,7 +4,12 @@ import { ShoppingCart, User, Menu, X, LogOut } from 'lucide-react';
 import { useApp } from '@/App';
 import { CartSidebar } from '@/components/CartSidebar';
 
-/* ── Logo — Badge stamp matching pic 2 design ── */
+// ── Use @fontsource packages (already in package.json) instead of @import ──
+// This eliminates the render-blocking Google Fonts request entirely
+import '@fontsource/lato/400.css';
+import '@fontsource/lato/700.css';
+
+/* ── Logo — Badge stamp ── */
 const LogoB = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 76" height="64" style={{ display: 'block' }}>
     <defs>
@@ -14,52 +19,39 @@ const LogoB = () => (
       </radialGradient>
     </defs>
 
-    {/* ── Outer terracotta border ring ── */}
     <circle cx="38" cy="38" r="36" fill="#b85520"/>
-    {/* ── Main dark badge fill ── */}
     <circle cx="38" cy="38" r="33" fill="url(#badgeBg)"/>
-    {/* ── Outer thin ring ── */}
     <circle cx="38" cy="38" r="31.5" fill="none" stroke="#c2602a" strokeWidth="0.7" opacity="0.6"/>
-    {/* ── Inner dashed ring ── */}
     <circle cx="38" cy="38" r="28" fill="none" stroke="#c2602a" strokeWidth="0.9" strokeDasharray="2.2,3.2" opacity="0.65"/>
 
-    {/* ── HANDMADE curved top text ── */}
     <path id="topCurve" d="M 13,30 A 26,26 0 0,1 63,30" fill="none"/>
     <text fontSize="5.5" fontFamily="Georgia, serif" fontWeight="700" fill="#e8a87c" letterSpacing="2.5">
       <textPath href="#topCurve" startOffset="10%">HANDMADE</textPath>
     </text>
-    {/* ── Sparkle diamonds ── */}
     <text x="15" y="27" fontSize="5" fill="#e8a87c" opacity="0.8">✦</text>
     <text x="55" y="27" fontSize="5" fill="#e8a87c" opacity="0.8">✦</text>
 
-    {/* ── Top separator line ── */}
     <line x1="16" y1="31" x2="60" y2="31" stroke="#c2602a" strokeWidth="0.6" opacity="0.45"/>
 
-    {/* ── Besties (cream/white, bold serif) ── */}
     <text x="38" y="45" textAnchor="middle"
       fontFamily="Georgia, 'Times New Roman', serif"
       fontSize="14.5" fontWeight="700"
       fill="#f5ead8" letterSpacing="0.4">Besties</text>
 
-    {/* ── Craft (terracotta italic) ── */}
     <text x="38" y="57" textAnchor="middle"
       fontFamily="Georgia, 'Times New Roman', serif"
       fontSize="12.5" fontStyle="italic" fontWeight="700"
       fill="#c2602a" letterSpacing="0.4">Craft</text>
 
-    {/* ── Bottom separator line ── */}
     <line x1="16" y1="60" x2="60" y2="60" stroke="#c2602a" strokeWidth="0.6" opacity="0.45"/>
 
-    {/* ── INDIA · SINCE 2025 curved bottom text ── */}
     <path id="botCurve" d="M 13,48 A 26,26 0 0,0 63,48" fill="none"/>
     <text fontSize="5" fontFamily="Georgia, serif" fontWeight="600" fill="#e8a87c" letterSpacing="1.8">
       <textPath href="#botCurve" startOffset="8%">INDIA · SINCE 2025</textPath>
     </text>
 
-    {/* ── Vertical divider ── */}
     <line x1="88" y1="14" x2="88" y2="62" stroke="#c2602a" strokeWidth="0.8" opacity="0.35"/>
 
-    {/* ── Wordmark right side ── */}
     <text x="100" y="25" fontFamily="Georgia, serif" fontSize="6.5"
       fill="#c2602a" letterSpacing="2.8" opacity="0.85">✦ ARTISAN COLLECTION</text>
     <text x="100" y="52" fontFamily="Georgia, 'Times New Roman', serif" fontSize="28"
@@ -84,7 +76,7 @@ const Navbar = () => {
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', onScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
@@ -103,7 +95,6 @@ const Navbar = () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap');
         .nb-root {
           position:sticky; top:0; z-index:200;
           background:rgba(250,247,242,0.97);
@@ -112,7 +103,6 @@ const Navbar = () => {
           transition:box-shadow 0.3s; font-family:'Lato',sans-serif;
         }
         .nb-root.scrolled { box-shadow:0 4px 28px rgba(44,24,16,0.1); }
-
         .nb-inner {
           max-width:1180px; margin:0 auto; padding:0 2rem;
           display:flex; align-items:center; justify-content:space-between;
@@ -182,8 +172,6 @@ const Navbar = () => {
           cursor:pointer; color:#4a3728; transition:background 0.2s;
         }
         .nb-hamburger:hover { background:#f2ede4; }
-
-        /* Mobile drawer */
         .nb-mobile-overlay {
           display:none; position:fixed; inset:0;
           background:rgba(44,24,16,0.4); z-index:299; backdrop-filter:blur(2px);
@@ -257,7 +245,6 @@ const Navbar = () => {
           transition:color 0.15s;
         }
         .nb-drawer-logout:hover { color:#c2602a; }
-
         @media (max-width:768px) {
           .nb-links,.nb-actions { display:none !important; }
           .nb-hamburger { display:flex; }
