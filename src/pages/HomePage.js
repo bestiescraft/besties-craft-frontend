@@ -190,6 +190,7 @@ export default function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(sitelinksSchema) }} />
 
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=Lato:wght@300;400;700&display=optional');
         :root {
           --cream: #faf7f2; --warm: #f2ede4; --sand: #e8dfd0;
           --terracotta: #c2602a; --brown: #5c3d2e;
@@ -197,7 +198,7 @@ export default function HomePage() {
         }
         .hp-page { background: var(--cream); font-family: 'Lato', sans-serif; }
 
-        .hp-hero { min-height: 88vh; display: flex; align-items: center; background: var(--warm); position: relative; overflow: hidden; padding: 5rem 2rem 4rem; }
+        .hp-hero { min-height: auto; display: flex; align-items: center; background: var(--warm); position: relative; overflow: hidden; padding: 3rem 2rem 3rem; }
         .hp-hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 50% at 80% 50%, rgba(194,96,42,0.08) 0%, transparent 70%), radial-gradient(ellipse 40% 60% at 10% 80%, rgba(92,61,46,0.06) 0%, transparent 60%); pointer-events: none; }
         .hp-hero-inner { max-width: 1180px; margin: 0 auto; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; position: relative; z-index: 1; }
 
@@ -311,14 +312,14 @@ export default function HomePage() {
           .hp-gifting-inner { grid-template-columns: 1fr; gap: 2rem; }
         }
         @media (max-width: 768px) {
-          .hp-hero         { padding: 4rem 1.5rem 3rem; min-height: auto; }
+          .hp-hero         { padding: 2.5rem 1.5rem 2.5rem; min-height: auto; }
           .hp-hero-inner   { grid-template-columns: 1fr; gap: 2rem; }
           .hp-hero-imgs    { display: none; }
           .hp-cats-grid    { grid-template-columns: repeat(3, 1fr); }
           .hp-occasions-grid { grid-template-columns: repeat(4, 1fr); }
         }
         @media (max-width: 480px) {
-          .hp-hero          { padding: 3rem 1rem 2.5rem; }
+          .hp-hero          { padding: 2rem 1rem 2rem; }
           .hp-cats-grid     { grid-template-columns: repeat(2, 1fr); }
           .hp-products-grid { grid-template-columns: 1fr; }
           .hp-why-grid      { grid-template-columns: 1fr; }
