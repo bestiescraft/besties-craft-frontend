@@ -5,8 +5,7 @@ import { AdminLayout } from '@/components/AdminLayout';
 import axios from 'axios';
 import { toast } from 'sonner';
 
-const API =
-  (process.env.REACT_APP_API_URL || process.env.REACT_APP_BACKEND_URL || 'https://besties-craft-backend-1.onrender.com').replace(/\/$/, '');
+import { API } from '@/lib/constants';
 
 const AdminDashboardPage = () => {
   const [stats, setStats] = useState(null);

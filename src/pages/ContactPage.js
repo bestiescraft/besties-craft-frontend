@@ -5,7 +5,7 @@ import { Mail, Phone, Clock, Send, MessageCircle, CheckCircle } from 'lucide-rea
 import { toast } from 'sonner';
 import usePageMeta from '@/hooks/usePageMeta';
 
-const API_BASE      = process.env.REACT_APP_API_URL || 'https://besties-craft-backend-1.onrender.com';
+import { API } from '@/lib/constants';
 const WHATSAPP_NUMBER = '918810776486';
 
 const ContactPage = () => {
@@ -33,7 +33,7 @@ const ContactPage = () => {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/contact`, {
+      const res = await fetch(`${API}/api/contact`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({

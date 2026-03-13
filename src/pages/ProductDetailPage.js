@@ -1,17 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Minus, Plus, ArrowLeft, CheckCircle, Pencil, Star, Shield, Truck, RefreshCw } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { useApp } from '@/App';
+import { BACKEND_URL, resolveImageUrl } from '@/lib/constants';
 import axios from 'axios';
 import { toast } from 'sonner';
 
-const BACKEND_URL =
-  process.env.REACT_APP_API_URL?.replace(/\/$/, '') ||
-  process.env.REACT_APP_BACKEND_URL?.replace(/\/$/, '') ||
-  'https://besties-craft-backend-1.onrender.com';
+// ── Constants ────────────────────────────────────────────────
+const PLACEHOLDER = 'https://via.placeholder.com/600x600/f5f5f0/cccccc?text=No+Image';
+
+const fixImageUrl = (url) => resolveImageUrl(url) || PLACEHOLDER;
 
 const VALID_CATEGORIES = [
   { value: 'bracelets',        name: 'Bracelets' },
@@ -31,7 +32,6 @@ const normalizeCategory = (raw) => {
   return match ? match.name : null;
 };
 
-// Care instructions by category
 const CARE_INSTRUCTIONS = {
   'bracelets':        ['Hand wash gently in cold water', 'Do not wring or twist', 'Air dry in shade', 'Keep away from moisture when not wearing', 'Store in a dry place'],
   'handmade-flowers': ['Keep away from direct sunlight to preserve colour', 'Dust gently with a soft dry cloth', 'Do not wet or wash', 'Handle delicately to maintain shape'],
@@ -40,7 +40,6 @@ const CARE_INSTRUCTIONS = {
   'gifting-items':    ['Keep away from water and moisture', 'Handle with care', 'Store in a cool, dry place', 'Best displayed away from direct sunlight'],
   'crafts':           ['Handle gently', 'Keep away from water', 'Store in a cool, dry place', 'Avoid rough surfaces'],
 };
-
 const DEFAULT_CARE = ['Hand wash gently in cold water', 'Air dry in shade', 'Keep away from direct sunlight', 'Store in a cool, dry place'];
 
 const PRESET_COLORS = [
@@ -53,24 +52,16 @@ const PRESET_COLORS = [
   { name: 'Grey',     hex: '#94A3B8' }, { name: 'Cream',    hex: '#FFFBEB' },
   { name: 'Maroon',   hex: '#7F1D1D' }, { name: 'Navy',     hex: '#1E3A5F' },
 ];
-
-const PLACEHOLDER = 'https://via.placeholder.com/600x600/f5f5f0/cccccc?text=No+Image';
-const fixImageUrl = (url) => {
-  if (!url) return PLACEHOLDER;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${BACKEND_URL}${url}`;
-};
 const COLOR_MAP = PRESET_COLORS.reduce((acc, c) => { acc[c.name] = c.hex; return acc; }, {});
 
-// ── Dynamic SEO meta + structured data setter ─────────────────────────────
+// ── Dynamic SEO meta + structured data ───────────────────────
 const setProductMeta = (product) => {
   if (!product) return;
-
-  const catName   = normalizeCategory(product.category) || 'Crochet Product';
-  const title     = `Buy Handmade ${product.name} Online India — Besties Craft`;
-  const desc      = `Buy handmade ${product.name} at ₹${product.base_price}. ${product.description?.slice(0, 110) || 'Handcrafted crochet product made with love in Varanasi, India.'} Custom colours. Pan-India delivery.`;
-  const image     = product.images?.[0]?.url || '';
-  const url       = `https://www.bestiescraft.in/products/${product._id}`;
+  const catName = normalizeCategory(product.category) || 'Crochet Product';
+  const title   = `Buy Handmade ${product.name} Online India — Besties Craft`;
+  const desc    = `Buy handmade ${product.name} at ₹${product.base_price}. ${product.description?.slice(0, 110) || 'Handcrafted crochet product made with love in Varanasi, India.'} Custom colours. Pan-India delivery.`;
+  const image   = product.images?.[0]?.url || '';
+  const url     = `https://www.bestiescraft.in/products/${product._id}`;
 
   document.title = title;
 
@@ -87,7 +78,7 @@ const setProductMeta = (product) => {
 
   setMeta('meta[name="description"]',         desc);
   setMeta('meta[name="keywords"]',
-    `handmade ${product.name} India, buy ${product.name} online India, crochet ${catName.toLowerCase()} India, handmade ${catName.toLowerCase()} India, Besties Craft, woollen gifts India, custom crochet India`
+    `handmade ${product.name} India, buy ${product.name} online India, crochet ${catName.toLowerCase()} India, Besties Craft, woollen gifts India`
   );
   setMeta('meta[property="og:title"]',        title);
   setMeta('meta[property="og:description"]',  desc);
@@ -103,7 +94,6 @@ const setProductMeta = (product) => {
   setMeta('meta[name="twitter:description"]', desc);
   setMeta('meta[name="twitter:card"]',        'summary_large_image');
 
-  // Canonical
   let canonical = document.querySelector('link[rel="canonical"]');
   if (!canonical) {
     canonical = document.createElement('link');
@@ -112,7 +102,6 @@ const setProductMeta = (product) => {
   }
   canonical.setAttribute('href', url);
 
-  // Product structured data for Google Shopping + rich results
   const existing = document.getElementById('product-ld-json');
   if (existing) existing.remove();
   const script = document.createElement('script');
@@ -122,24 +111,11 @@ const setProductMeta = (product) => {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
-    description: product.description || `Handmade ${catName} crafted in Varanasi, India. Custom colours available. Pan-India delivery.`,
+    description: product.description || `Handmade ${catName} crafted in Varanasi, India.`,
     image: product.images?.map(img => img.url) || [],
     brand: { '@type': 'Brand', name: 'Besties Craft' },
-    manufacturer: {
-      '@type': 'Organization',
-      name: 'Besties Craft',
-      url: 'https://www.bestiescraft.in',
-      address: {
-        '@type': 'PostalAddress',
-        addressLocality: 'Varanasi',
-        addressRegion: 'Uttar Pradesh',
-        addressCountry: 'IN',
-      },
-    },
     sku: product._id,
     category: catName,
-    material: 'Handmade Crochet / Woollen',
-    countryOfOrigin: 'IN',
     offers: {
       '@type': 'Offer',
       priceCurrency: 'INR',
@@ -147,56 +123,14 @@ const setProductMeta = (product) => {
       availability: (product.in_stock || product.stock > 0)
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
-      seller: {
-        '@type': 'Organization',
-        name: 'Besties Craft',
-        url: 'https://www.bestiescraft.in',
-      },
+      seller: { '@type': 'Organization', name: 'Besties Craft', url: 'https://www.bestiescraft.in' },
       url,
-      shippingDetails: {
-        '@type': 'OfferShippingDetails',
-        shippingRate: {
-          '@type': 'MonetaryAmount',
-          currency: 'INR',
-        },
-        shippingDestination: {
-          '@type': 'DefinedRegion',
-          addressCountry: 'IN',
-        },
-      },
-      hasMerchantReturnPolicy: {
-        '@type': 'MerchantReturnPolicy',
-        applicableCountry: 'IN',
-        returnPolicyCategory: 'https://schema.org/MerchantReturnUnspecified',
-        merchantReturnDays: 2,
-        returnMethod: 'https://schema.org/ReturnByMail',
-        returnFees: 'https://schema.org/FreeReturn',
-      },
-    },
-    ...(product.reviews_count > 0 ? {
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: product.rating || 0,
-        reviewCount: product.reviews_count,
-        bestRating: 5,
-        worstRating: 1,
-      },
-    } : {}),
-    // BreadcrumbList inline
-    breadcrumb: {
-      '@type': 'BreadcrumbList',
-      itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Home',     item: 'https://www.bestiescraft.in/' },
-        { '@type': 'ListItem', position: 2, name: 'Products', item: 'https://www.bestiescraft.in/products' },
-        { '@type': 'ListItem', position: 3, name: catName,    item: `https://www.bestiescraft.in/products?category=${product.category}` },
-        { '@type': 'ListItem', position: 4, name: product.name, item: url },
-      ],
     },
   });
   document.head.appendChild(script);
 };
 
-// ── Star Rating ──────────────────────────────────────────────────────────────
+// ── Star Rating ──────────────────────────────────────────────
 const StarRating = ({ value = 0, max = 5, size = 18, interactive = false, onChange }) => {
   const [hovered, setHovered] = useState(0);
   const display = interactive ? (hovered || value) : value;
@@ -226,7 +160,7 @@ const RatingBar = ({ star, count, total }) => {
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.3rem' }}>
       <span style={{ fontSize: '0.78rem', color: '#9a8070', fontFamily: 'sans-serif', minWidth: 10 }}>{star}</span>
       <span style={{ color: '#f59e0b', fontSize: 11 }} aria-hidden="true">★</span>
-      <div style={{ flex: 1, height: 7, background: '#f0ebe3', borderRadius: 99, overflow: 'hidden' }} role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
+      <div style={{ flex: 1, height: 7, background: '#f0ebe3', borderRadius: 99, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: '#f59e0b', borderRadius: 99, transition: 'width 0.5s' }} />
       </div>
       <span style={{ fontSize: '0.75rem', color: '#9a8070', fontFamily: 'sans-serif', minWidth: 20, textAlign: 'right' }}>{count}</span>
@@ -384,12 +318,12 @@ const ReviewsSection = ({ productId, initialReviews = [], initialRating = 0, use
   );
 };
 
-// ── Main Page ────────────────────────────────────────────────────────────────
+// ── Main Page ────────────────────────────────────────────────
 const ProductDetailPage = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
+  const { id }                      = useParams();
+  const navigate                    = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { cart, setCart, user } = useApp();
+  const { cart, setCart, user }     = useApp();
 
   const [product,         setProduct]        = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -397,30 +331,18 @@ const ProductDetailPage = () => {
   const [loading,         setLoading]         = useState(true);
   const [selectedImage,   setSelectedImage]   = useState(0);
   const [customisation,   setCustomisation]   = useState('');
-  const colorFromUrl = searchParams.get('color');
-  const [selectedColor, setSelectedColor] = useState(colorFromUrl || null);
+  const colorFromUrl                          = searchParams.get('color');
+  const [selectedColor,   setSelectedColor]   = useState(colorFromUrl || null);
 
-  useEffect(() => { if (id) fetchProduct(); }, [id]);
-
-  useEffect(() => {
-    if (product) {
-      setProductMeta(product);
-      if (product.colors?.length > 0) {
-        if (colorFromUrl && product.colors.includes(colorFromUrl)) setSelectedColor(colorFromUrl);
-        else { setSelectedColor(product.colors[0]); setSearchParams({ color: product.colors[0] }, { replace: true }); }
-      }
-      if (product.category) fetchRelated(product.category, product._id);
-    }
-  }, [product]);
-
-  const fetchProduct = async () => {
+  // FIX: fetchProduct wrapped in useCallback with [id] dep — no stale closure
+  const fetchProduct = useCallback(async () => {
     try {
       setLoading(true); setSelectedImage(0); setCustomisation('');
       const res = await axios.get(`${BACKEND_URL}/api/products/${id}`);
       setProduct(res.data.product);
     } catch (err) { toast.error(err?.response?.data?.detail || 'Unable to fetch product'); }
     finally { setLoading(false); }
-  };
+  }, [id]);
 
   const fetchRelated = async (category, currentId) => {
     try {
@@ -428,6 +350,29 @@ const ProductDetailPage = () => {
       setRelatedProducts((res.data.products || []).filter(p => p._id !== currentId).slice(0, 4));
     } catch { setRelatedProducts([]); }
   };
+
+  // FIX: deps array includes both id and fetchProduct (stable via useCallback)
+  useEffect(() => { if (id) fetchProduct(); }, [id, fetchProduct]);
+
+  // FIX: this effect legitimately cannot include colorFromUrl/setSearchParams
+  // because doing so creates an infinite re-render loop (setSearchParams triggers
+  // a re-render which changes colorFromUrl which re-triggers the effect).
+  // The eslint-disable is intentional and documented here.
+  useEffect(() => {
+    if (product) {
+      setProductMeta(product);
+      if (product.colors?.length > 0) {
+        if (colorFromUrl && product.colors.includes(colorFromUrl)) {
+          setSelectedColor(colorFromUrl);
+        } else {
+          setSelectedColor(product.colors[0]);
+          setSearchParams({ color: product.colors[0] }, { replace: true });
+        }
+      }
+      if (product.category) fetchRelated(product.category, product._id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product]);
 
   const handleColorSelect = (colorName) => {
     setSelectedColor(colorName);
@@ -440,8 +385,17 @@ const ProductDetailPage = () => {
     const customKey = customisation.trim();
     const existing  = cart.find(item => item.product_id === product._id && item.color === selectedColor && (item.customisation || '') === customKey);
     const newCart   = existing
-      ? cart.map(item => item.product_id === product._id && item.color === selectedColor && (item.customisation || '') === customKey ? { ...item, quantity: item.quantity + quantity } : item)
-      : [...cart, { product_id: product._id, product_name: product.name, price: product.base_price, image: product.images?.length > 0 ? fixImageUrl(product.images[0].url) : '', quantity, color: selectedColor || null, customisation: customKey || null }];
+      ? cart.map(item => item.product_id === product._id && item.color === selectedColor && (item.customisation || '') === customKey
+          ? { ...item, quantity: item.quantity + quantity } : item)
+      : [...cart, {
+          product_id:   product._id,
+          product_name: product.name,
+          price:        product.base_price,
+          image:        product.images?.length > 0 ? fixImageUrl(product.images[0].url) : '',
+          quantity,
+          color:        selectedColor || null,
+          customisation: customKey || null,
+        }];
     setCart(newCart);
     toast.success(`${product.name}${selectedColor ? ` (${selectedColor})` : ''}${customKey ? ' with custom note' : ''} added to cart!`);
     setCustomisation('');
@@ -487,13 +441,11 @@ const ProductDetailPage = () => {
         .pdp-info-tabs{margin-top:2rem;border-top:1px solid #e8e4df;padding-top:1.5rem;}
         .pdp-info-row{display:flex;flex-direction:column;gap:.6rem;}
         .pdp-info-item{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:#faf7f2;border-radius:10px;font-family:'Lato',sans-serif;font-size:.85rem;color:#4a3728;}
-        .pdp-info-icon{color:#c2602a;flex-shrink:0;}
         .pdp-care-section{margin-top:1.5rem;padding:1.25rem;background:#fff;border-radius:14px;border:1px solid #e8dfd0;}
         .pdp-care-title{font-family:'Playfair Display',Georgia,serif;font-size:1rem;font-weight:700;color:#2c1810;margin:0 0 .75rem;}
         .pdp-care-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.4rem;}
         .pdp-care-item{font-family:'Lato',sans-serif;font-size:.82rem;color:#5c3d2e;display:flex;align-items:flex-start;gap:.5rem;line-height:1.5;}
         .pdp-care-dot{color:#c2602a;flex-shrink:0;margin-top:2px;}
-        /* SEO text block */
         .pdp-seo-text{max-width:1100px;margin:0 auto;padding:0 1.5rem 2rem;box-sizing:border-box;}
         .pdp-seo-text p{font-family:'Lato',sans-serif;font-size:.82rem;color:#9a8070;line-height:1.75;}
         @media(max-width:768px){
@@ -527,7 +479,6 @@ const ProductDetailPage = () => {
         <Navbar />
 
         <div className="pdp-wrap">
-          {/* Breadcrumb nav — important for SEO */}
           <nav aria-label="Breadcrumb" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
             <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8070', fontSize: '0.78rem', fontFamily: 'sans-serif', padding: 0 }}>Home</button>
             <span style={{ color: '#c8bfb5', fontSize: '0.78rem' }} aria-hidden="true">›</span>
@@ -548,7 +499,7 @@ const ProductDetailPage = () => {
 
           <div className="pdp-grid">
             {/* Gallery */}
-            <motion.div initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} transition={{duration:.45}} className="pdp-gallery" style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
+            <motion.div initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} transition={{duration:.45}} style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
               <div className="pdp-main-img-wrap" style={st.mainImgWrap}>
                 <img
                   src={images[selectedImage]}
@@ -562,8 +513,8 @@ const ProductDetailPage = () => {
               {images.length > 1 && (
                 <div className="pdp-thumb-row" style={st.thumbRow} role="list" aria-label="Product images">
                   {images.map((img,i) => (
-                    <button key={i} onClick={()=>setSelectedImage(i)} style={{...st.thumbBtn,...(selectedImage===i?st.thumbBtnActive:{})}} aria-label={`View image ${i+1} of ${product.name}`} aria-pressed={selectedImage===i}>
-                      <img src={img} alt={`${product.name} — view ${i+1} — Besties Craft`} style={st.thumbImg} loading="lazy" onError={e=>{e.target.src=PLACEHOLDER;}} />
+                    <button key={i} onClick={()=>setSelectedImage(i)} style={{...st.thumbBtn,...(selectedImage===i?st.thumbBtnActive:{})}} aria-label={`View image ${i+1}`} aria-pressed={selectedImage===i}>
+                      <img src={img} alt={`${product.name} view ${i+1}`} style={st.thumbImg} loading="lazy" onError={e=>{e.target.src=PLACEHOLDER;}} />
                     </button>
                   ))}
                 </div>
@@ -574,16 +525,13 @@ const ProductDetailPage = () => {
             <motion.div initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} transition={{duration:.45,delay:.15}} className="pdp-info-col" style={st.infoCol}>
               {displayCategory && (
                 <span style={st.categoryTag}>
-                  <a href={`/products?category=${product.category}`} style={{ color: 'inherit', textDecoration: 'none' }} aria-label={`Browse all ${displayCategory}`}>
+                  <a href={`/products?category=${product.category}`} style={{ color: 'inherit', textDecoration: 'none' }}>
                     {displayCategory.toUpperCase()}
                   </a>
                 </span>
               )}
 
-              {/* H1 — primary keyword */}
-              <h1 className="pdp-product-name" style={st.productName}>
-                {product.name}
-              </h1>
+              <h1 className="pdp-product-name" style={st.productName}>{product.name}</h1>
 
               {product.reviews_count > 0 && (
                 <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.85rem'}}>
@@ -595,17 +543,13 @@ const ProductDetailPage = () => {
               )}
 
               <div style={st.priceRow}>
-                <span className="pdp-price" style={st.price} itemProp="price" content={product.base_price}>
-                  ₹{parseFloat(product.base_price).toLocaleString('en-IN')}
-                </span>
+                <span className="pdp-price" style={st.price}>₹{parseFloat(product.base_price).toLocaleString('en-IN')}</span>
                 {inStock
                   ? <span style={st.inStockBadge}><CheckCircle size={13} aria-hidden="true"/> In Stock</span>
                   : <span style={st.outStockBadge}>Out of Stock</span>}
               </div>
 
-              {product.description && (
-                <p style={st.description} itemProp="description">{product.description}</p>
-              )}
+              {product.description && <p style={st.description}>{product.description}</p>}
 
               {inStock && (
                 <>
@@ -614,11 +558,15 @@ const ProductDetailPage = () => {
                       <div style={st.sectionLabel}>Colour:&nbsp;<span style={st.selectedColorName}>{selectedColor||'—'}</span></div>
                       <div style={st.swatchRow} role="group" aria-label="Select colour">
                         {colors.map(colorName => {
-                          const preset=PRESET_COLORS.find(p=>p.name===colorName); const isSelected=selectedColor===colorName;
-                          return (<button key={colorName} title={colorName} aria-label={`Select colour: ${colorName}`} aria-pressed={isSelected} onClick={()=>handleColorSelect(colorName)}
-                            style={{...st.swatch,background:preset?.hex||'#ccc',...(isSelected?st.swatchSelected:{})}}>
-                            {isSelected&&<span style={st.swatchCheck} aria-hidden="true">✓</span>}
-                          </button>);
+                          const preset = PRESET_COLORS.find(p => p.name === colorName);
+                          const isSelected = selectedColor === colorName;
+                          return (
+                            <button key={colorName} title={colorName} aria-label={`Select colour: ${colorName}`} aria-pressed={isSelected}
+                              onClick={() => handleColorSelect(colorName)}
+                              style={{...st.swatch, background: preset?.hex||'#ccc', ...(isSelected?st.swatchSelected:{})}}>
+                              {isSelected && <span style={st.swatchCheck} aria-hidden="true">✓</span>}
+                            </button>
+                          );
                         })}
                       </div>
                       {selectedColor && <p style={{margin:'.5rem 0 0',fontSize:'.82rem',color:'#888',fontFamily:'sans-serif'}}>Selected: <strong style={{color:'#333'}}>{selectedColor}</strong></p>}
@@ -629,7 +577,7 @@ const ProductDetailPage = () => {
                     <div style={st.sectionLabel}>Quantity</div>
                     <div style={st.qtyRow}>
                       <button style={st.qtyBtn} onClick={()=>setQuantity(q=>Math.max(1,q-1))} disabled={quantity<=1} aria-label="Decrease quantity"><Minus size={16} aria-hidden="true"/></button>
-                      <span style={st.qtyNum} aria-live="polite" aria-label={`Quantity: ${quantity}`}>{quantity}</span>
+                      <span style={st.qtyNum} aria-live="polite">{quantity}</span>
                       <button style={st.qtyBtn} onClick={()=>setQuantity(q=>q+1)} aria-label="Increase quantity"><Plus size={16} aria-hidden="true"/></button>
                     </div>
                   </div>
@@ -650,23 +598,20 @@ const ProductDetailPage = () => {
 
                   <button style={st.cartBtn} onClick={addToCart} aria-label={`Add ${product.name} to cart`}>
                     <ShoppingCart size={20} aria-hidden="true"/>
-                    {customisation.trim()?'Add to Cart with Customisation':'Add to Cart'}
+                    {customisation.trim() ? 'Add to Cart with Customisation' : 'Add to Cart'}
                   </button>
-                  {customisation.trim()&&<p style={{marginTop:'.65rem',fontSize:'.78rem',color:'#9a8070',fontFamily:'sans-serif',textAlign:'center',lineHeight:1.5}}>✦ Your customisation note will be sent to us with the order</p>}
+                  {customisation.trim() && <p style={{marginTop:'.65rem',fontSize:'.78rem',color:'#9a8070',fontFamily:'sans-serif',textAlign:'center',lineHeight:1.5}}>✦ Your customisation note will be sent to us with the order</p>}
                 </>
               )}
 
-              {!inStock&&<div style={st.outOfStockBox}><p style={{margin:0,color:'#be123c',fontWeight:600}}>This product is currently out of stock.</p></div>}
+              {!inStock && <div style={st.outOfStockBox}><p style={{margin:0,color:'#be123c',fontWeight:600}}>This product is currently out of stock.</p></div>}
 
-              {/* Delivery & trust info */}
               <div className="pdp-info-tabs">
                 <div className="pdp-info-row">
                   <div className="pdp-info-item"><Truck size={16} style={{color:'#c2602a'}} aria-hidden="true"/> Pan-India delivery · Live rates at checkout</div>
                   <div className="pdp-info-item"><Shield size={16} style={{color:'#c2602a'}} aria-hidden="true"/> Secure payment via Razorpay (UPI, Cards, Net Banking)</div>
                   <div className="pdp-info-item"><RefreshCw size={16} style={{color:'#c2602a'}} aria-hidden="true"/> Issue with order? WhatsApp us within 48 hrs — we'll fix it</div>
                 </div>
-
-                {/* Care instructions */}
                 <div className="pdp-care-section">
                   <h2 className="pdp-care-title">🧶 Care Instructions</h2>
                   <ul className="pdp-care-list">
@@ -683,37 +628,32 @@ const ProductDetailPage = () => {
           </div>
         </div>
 
-        {/* SEO text — keyword rich, visible text Google can read */}
         <div className="pdp-seo-text">
           <p>
             Handmade {product.name} by Besties Craft — crafted with love in Varanasi, India.
             {displayCategory ? ` This ${displayCategory.toLowerCase()} is ` : ' '}
             100% handmade with premium quality materials. Fully customisable — choose your
-            colour, add a personal message or name. Perfect as a handmade gift for birthdays,
-            Valentine's Day, friendships, weddings and festivals. Delivered pan-India.
-            Secure payment via Razorpay (UPI, Credit/Debit Card, Net Banking). Custom orders
-            welcome — WhatsApp +91 88107 76486.
+            colour, add a personal message or name. Delivered pan-India. Secure payment via
+            Razorpay. Custom orders welcome — WhatsApp +91 88107 76486.
           </p>
         </div>
 
-        {/* Reviews */}
         <ReviewsSection productId={id} initialReviews={product.reviews||[]} initialRating={product.rating||0} user={user}/>
 
-        {/* Related */}
-        {relatedProducts.length>0&&(
+        {relatedProducts.length > 0 && (
           <>
             <hr className="pdp-divider"/>
             <section className="pdp-related-section" aria-label="You may also like">
               <h2 className="pdp-related-title">✨ You May Also Like</h2>
               <div className="pdp-related-grid">
-                {relatedProducts.map((rp,i)=>(
+                {relatedProducts.map((rp, i) => (
                   <motion.article key={rp._id} className="pdp-related-card" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:i*.08}}
-                    onClick={()=>{navigate(`/products/${rp._id}`);window.scrollTo(0,0);}}
+                    onClick={() => { navigate(`/products/${rp._id}`); window.scrollTo(0,0); }}
                     aria-label={`View ${rp.name}`}
                   >
                     <div className="pdp-related-img">
                       <img
-                        src={rp.images?.[0]?.url?fixImageUrl(rp.images[0].url):PLACEHOLDER}
+                        src={rp.images?.[0]?.url ? fixImageUrl(rp.images[0].url) : PLACEHOLDER}
                         alt={`Handmade ${rp.name} — Besties Craft India`}
                         loading="lazy"
                         width="400"
@@ -722,7 +662,7 @@ const ProductDetailPage = () => {
                       />
                     </div>
                     <div className="pdp-related-body">
-                      {rp.colors?.length>0&&<div className="pdp-related-colors" aria-label={`Colours: ${rp.colors.join(', ')}`}>{rp.colors.slice(0,5).map(c=><div key={c} className="pdp-color-dot" style={{background:COLOR_MAP[c]||'#ccc'}} title={c}/>)}</div>}
+                      {rp.colors?.length > 0 && <div className="pdp-related-colors">{rp.colors.slice(0,5).map(c => <div key={c} className="pdp-color-dot" style={{background:COLOR_MAP[c]||'#ccc'}} title={c}/>)}</div>}
                       <div className="pdp-related-name">{rp.name}</div>
                       <div className="pdp-related-price">₹{parseFloat(rp.base_price).toLocaleString('en-IN')}</div>
                     </div>

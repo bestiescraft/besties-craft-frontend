@@ -6,15 +6,9 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { useApp } from '@/App';
 
-const BACKEND_URL =
-  process.env.REACT_APP_API_URL?.replace(/\/$/, '') ||
-  'https://besties-craft-backend-1.onrender.com';
+import { resolveImageUrl } from '@/lib/constants';
 
-const fixImageUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${BACKEND_URL}${url}`;
-};
+const fixImageUrl = resolveImageUrl;
 
 const PLACEHOLDER = 'https://via.placeholder.com/100x100/f2ede4/9a8070?text=🧶';
 

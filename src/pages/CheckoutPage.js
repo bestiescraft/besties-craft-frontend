@@ -17,8 +17,7 @@ import {
 import axios from 'axios';
 import { toast } from 'sonner';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { BACKEND_URL, API } from '@/lib/constants';
 
 const PLACEHOLDER_IMG = 'https://placehold.co/64x64/e8e0d5/a09080?text=Item';
 const FALLBACK_SHIPPING = 60;

@@ -8,9 +8,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import usePageMeta from '@/hooks/usePageMeta';
 
-const BACKEND_URL =
-  process.env.REACT_APP_BACKEND_URL?.replace(/\/$/, '') ||
-  'https://besties-craft-backend-1.onrender.com';
+import { BACKEND_URL } from '@/lib/constants';
 
 const CATEGORIES = [
   { label: 'All Products',     value: '',                 emoji: '✨', seoTitle: 'Shop Handmade Crochet & Woollen Products — Besties Craft India', seoDesc: 'Browse 100% handmade crochet bracelets, woollen flowers, keychains, hair accessories and gifting items. Custom orders. Pan-India delivery from Varanasi.' },

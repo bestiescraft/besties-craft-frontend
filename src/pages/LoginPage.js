@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useApp } from '@/App';
 import { toast } from 'sonner';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'https://besties-craft-backend-1.onrender.com';
+import { API } from '@/lib/constants';
 
 const LoginPage = () => {
   const navigate          = useNavigate();
@@ -43,7 +43,7 @@ const LoginPage = () => {
 
     setLoading(true);
     try {
-      const res  = await fetch(`${API_BASE}/api/auth/send-otp`, {
+      const res  = await fetch(`${API}/api/auth/send-otp`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ email: email.trim().toLowerCase() }),
@@ -71,7 +71,7 @@ const LoginPage = () => {
 
     setLoading(true);
     try {
-      const res  = await fetch(`${API_BASE}/api/auth/verify-otp`, {
+      const res  = await fetch(`${API}/api/auth/verify-otp`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ email: email.trim().toLowerCase(), otp: otpString }),

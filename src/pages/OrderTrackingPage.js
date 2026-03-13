@@ -7,8 +7,7 @@ import { Footer } from '@/components/Footer';
 import axios from 'axios';
 import usePageMeta from '@/hooks/usePageMeta';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL?.replace(/\/$/, '') ||
-  'https://besties-craft-backend-1.onrender.com';
+import { BACKEND_URL } from '@/lib/constants';
 
 const STATUS_STEPS = [
   { key: 'confirmed',  label: 'Order Confirmed',  icon: CheckCircle, desc: 'We received your order!' },

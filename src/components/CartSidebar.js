@@ -3,15 +3,9 @@ import { X, ShoppingCart, Trash2, Plus, Minus, Pencil } from 'lucide-react';
 import { useApp } from '@/App';
 import { useNavigate } from 'react-router-dom';
 
-const BACKEND_URL =
-  process.env.REACT_APP_API_URL?.replace(/\/$/, '') ||
-  'https://besties-craft-backend-1.onrender.com';
+import { resolveImageUrl } from '@/lib/constants';
 
-const fixImageUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${BACKEND_URL}${url}`;
-};
+const fixImageUrl = resolveImageUrl;
 
 const PLACEHOLDER = 'https://via.placeholder.com/80x80/f2ede4/9a8070?text=🧶';
 

@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 //   onSuccess(email) — called after OTP is verified successfully
 // ─────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.REACT_APP_API_URL || 'https://besties-craft-backend-1.onrender.com';
+import { API as API_BASE } from '@/lib/constants';
 
 const OTPLogin = ({ onSuccess }) => {
   const [step, setStep]         = useState('email');   // 'email' | 'otp' | 'done'

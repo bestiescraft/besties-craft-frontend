@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { AdminLayout } from '@/components/AdminLayout';
+import { API } from '@/lib/constants';
 
-const API = process.env.REACT_APP_API_URL || 'https://besties-craft-backend-1.onrender.com';
 
 // ── Built-in categories (always available) ──
 const DEFAULT_CATEGORIES = [
@@ -110,14 +110,14 @@ function AdminProductsPage() {
     return ALL_CATEGORIES.find(c => c.value === normalized) || { label: val || 'Unknown', emoji: '📦' };
   };
 
-  useEffect(() => { fetchProducts(); }, []);
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       const adminToken = localStorage.getItem('admin_token');
       if (!adminToken) { toast.error('Please login as admin first'); setProducts([]); return; }
-      const response = await axios.get(`${API}/api/admin/products`, {
+      const response = await axios.get(`${API}/admin/products`, {
         headers: { 'admin-token': adminToken },
       });
       const fetched = response.data.products || response.data || [];
@@ -126,7 +126,8 @@ function AdminProductsPage() {
       toast.error(error.response?.data?.detail || 'Failed to fetch products');
       setProducts([]);
     } finally { setLoading(false); }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Add custom category ──
   const handleAddCustomCategory = () => {
@@ -249,7 +250,7 @@ function AdminProductsPage() {
   const uploadSingleImage = async (file, adminToken) => {
     const fd = new FormData();
     fd.append('file', file);
-    const res = await axios.post(`${API}/api/upload-image`, fd, {
+    const res = await axios.post(`${API}/upload-image`, fd, {
       headers: { 'admin-token': adminToken, 'Content-Type': 'multipart/form-data' },
       timeout: 30000,
     });
@@ -338,10 +339,10 @@ function AdminProductsPage() {
     try {
       const config = { headers: { 'admin-token': adminToken, 'Content-Type': 'application/json' } };
       if (editingProduct?._id) {
-        await axios.put(`${API}/api/admin/products/${editingProduct._id}`, productData, config);
+        await axios.put(`${API}/admin/products/${editingProduct._id}`, productData, config);
         toast.success('Product updated! ✓');
       } else {
-        await axios.post(`${API}/api/admin/products`, productData, config);
+        await axios.post(`${API}/admin/products`, productData, config);
         toast.success('Product created! ✓');
       }
       closeModal();
@@ -355,7 +356,7 @@ function AdminProductsPage() {
     if (!window.confirm('Delete this product?')) return;
     try {
       const adminToken = localStorage.getItem('admin_token');
-      await axios.delete(`${API}/api/admin/products/${productId}`, {
+      await axios.delete(`${API}/admin/products/${productId}`, {
         headers: { 'admin-token': adminToken },
       });
       toast.success('Product deleted');
