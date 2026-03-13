@@ -8,6 +8,14 @@ import { useApp } from '@/App';
 import axios from 'axios';
 import { toast } from 'sonner';
 
+// ── Backend URL & Image Helper ────────────────────────────────
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://api.bestiescraft.in';
+
+const optimizeImageUrl = (url, opts = {}) => {
+  if (!url || typeof url !== 'string') return null;
+  return url;
+};
+
 // ── Constants ────────────────────────────────────────────────
 const PLACEHOLDER = 'https://via.placeholder.com/600x600/f5f5f0/cccccc?text=No+Image';
 
@@ -333,7 +341,6 @@ const ProductDetailPage = () => {
   const colorFromUrl                          = searchParams.get('color');
   const [selectedColor,   setSelectedColor]   = useState(colorFromUrl || null);
 
-  // FIX: fetchProduct wrapped in useCallback with [id] dep — no stale closure
   const fetchProduct = useCallback(async () => {
     try {
       setLoading(true); setSelectedImage(0); setCustomisation('');
@@ -350,13 +357,8 @@ const ProductDetailPage = () => {
     } catch { setRelatedProducts([]); }
   };
 
-  // FIX: deps array includes both id and fetchProduct (stable via useCallback)
   useEffect(() => { if (id) fetchProduct(); }, [id, fetchProduct]);
 
-  // FIX: this effect legitimately cannot include colorFromUrl/setSearchParams
-  // because doing so creates an infinite re-render loop (setSearchParams triggers
-  // a re-render which changes colorFromUrl which re-triggers the effect).
-  // The eslint-disable is intentional and documented here.
   useEffect(() => {
     if (product) {
       setProductMeta(product);
