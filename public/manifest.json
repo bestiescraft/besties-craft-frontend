@@ -1,0 +1,27 @@
+{
+  "name": "Besties Craft — Handmade Crochet & Craft Store",
+  "short_name": "BestiesCraft",
+  "description": "Shop handmade crochet bags, accessories & craft items from Besties Craft India.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff8f0",
+  "theme_color": "#d4845a",
+  "icons": [
+    {
+      "src": "/favicon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "lifestyle"],
+  "lang": "en-IN",
+  "scope": "/"
+}
