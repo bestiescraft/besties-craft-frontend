@@ -1,23 +1,54 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# =============================================
+# SECURITY — NEVER COMMIT THESE
+# =============================================
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
 
-# dependencies
-/node_modules
+# =============================================
+# DEPENDENCIES
+# =============================================
+node_modules/
 /.pnp
 .pnp.js
 
-# testing
+# =============================================
+# BUILD OUTPUT
+# =============================================
+/build
+/dist
+/.next
+/out
+
+# =============================================
+# TESTING
+# =============================================
 /coverage
 
-# production
-/build
-
-# misc
+# =============================================
+# MISC
+# =============================================
 .DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# =============================================
+# EDITOR
+# =============================================
+.idea/
+.vscode/
+*.swp
+*.swo
