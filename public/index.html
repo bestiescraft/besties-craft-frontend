@@ -48,20 +48,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
 
-    <!-- ===================== FONTS (non-render-blocking) ===================== -->
-    <!-- FIX: Replaces @import inside CSS which was render-blocking -->
-    <!-- display=swap means text shows immediately in fallback font while loading -->
+    <!-- ===================== FONTS ===================== -->
+    <!-- display=optional: uses cached font or system fallback — zero reflow, zero TBT spike -->
     <link rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap"
-      media="print"
-      onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=Lato:wght@300;400;700&display=optional"
     />
-    <!-- Fallback for browsers with JS disabled -->
-    <noscript>
-      <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap"
-      />
-    </noscript>
 
     <!-- ===================== STRUCTURED DATA (JSON-LD) ===================== -->
     <script type="application/ld+json">
