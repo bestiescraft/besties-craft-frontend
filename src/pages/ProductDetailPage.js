@@ -5,14 +5,13 @@ import { ShoppingCart, Minus, Plus, ArrowLeft, CheckCircle, Pencil, Star, Shield
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { useApp } from '@/App';
-import { BACKEND_URL, resolveImageUrl } from '@/lib/constants';
 import axios from 'axios';
 import { toast } from 'sonner';
 
 // ── Constants ────────────────────────────────────────────────
 const PLACEHOLDER = 'https://via.placeholder.com/600x600/f5f5f0/cccccc?text=No+Image';
 
-const fixImageUrl = (url) => resolveImageUrl(url) || PLACEHOLDER;
+const fixImageUrl = (url, width = 800) => optimizeImageUrl(url, { width }) || PLACEHOLDER;
 
 const VALID_CATEGORIES = [
   { value: 'bracelets',        name: 'Bracelets' },

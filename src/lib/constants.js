@@ -42,3 +42,24 @@ export const resolveImageUrl = (url) => {
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   return `${BACKEND_URL}${url}`;
 };
+
+/**
+ * Optimise a Cloudinary URL:
+ * - f_auto  → serves WebP to supported browsers (saves 30–50%)
+ * - q_auto  → smart quality compression (saves 40–70%)
+ * - w_{width} + c_limit → resize without upscaling
+ *
+ * Falls back to original URL if not a Cloudinary URL.
+ *
+ * @param {string} url     - Raw image URL from backend
+ * @param {object} options - { width?: number, height?: number }
+ */
+export const optimizeImageUrl = (url, options = {}) => {
+  const resolved = resolveImageUrl(url);
+  if (!resolved || !resolved.includes('res.cloudinary.com')) return resolved;
+
+  const { width = 800 } = options;
+  const transforms = `f_auto,q_auto,w_${width},c_limit`;
+
+  return resolved.replace('/upload/', `/upload/${transforms}/`);
+};
