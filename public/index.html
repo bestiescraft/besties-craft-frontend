@@ -6,31 +6,31 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
     <!-- ===================== PRIMARY SEO ===================== -->
-    <title>Besties Craft — Handmade Crochet Bags & Accessories India</title>
-    <meta name="description" content="Shop handmade crochet bags, tote bags, accessories & unique craft gifts at Besties Craft. Crafted with love in India. Free shipping available." />
-    <meta name="keywords" content="handmade crochet bags, crochet tote bag India, crochet accessories, handmade gifts India, bestiescraft, craft store India" />
+    <title>Besties Craft — Handmade Crochet Bracelets, Woollen Flowers & Gifts India</title>
+    <meta name="description" content="Shop 100% handmade crochet bracelets, woollen flowers, keychains, hair accessories & gifting items online in India. Custom orders accepted. Pan-India delivery. Crafted with love in Varanasi." />
+    <meta name="keywords" content="handmade crochet India, crochet bracelets India, woollen flowers, handmade gifts India, bestiescraft, crochet keychains, hair accessories handmade" />
     <meta name="author" content="Besties Craft" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
-    <meta name="theme-color" content="#d4845a" />
-    <link rel="canonical" href="https://bestiescraft.in/" />
+    <meta name="theme-color" content="#c2602a" />
+    <link rel="canonical" href="https://www.bestiescraft.in/" />
 
-    <!-- ===================== OPEN GRAPH (Facebook, WhatsApp) ===================== -->
+    <!-- ===================== OPEN GRAPH ===================== -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Besties Craft" />
-    <meta property="og:title" content="Besties Craft — Handmade Crochet Bags & Accessories India" />
-    <meta property="og:description" content="Shop handmade crochet bags, tote bags, accessories & unique craft gifts. Crafted with love in India." />
-    <meta property="og:url" content="https://bestiescraft.in/" />
-    <meta property="og:image" content="https://bestiescraft.in/og-image.jpg" />
+    <meta property="og:title" content="Besties Craft — Handmade Crochet Bracelets, Woollen Flowers & Gifts India" />
+    <meta property="og:description" content="Shop 100% handmade crochet bracelets, woollen flowers, keychains, hair accessories & gifting items. Custom orders. Pan-India delivery. Crafted in Varanasi." />
+    <meta property="og:url" content="https://www.bestiescraft.in/" />
+    <meta property="og:image" content="https://www.bestiescraft.in/og-image.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Besties Craft handmade crochet bags and accessories" />
+    <meta property="og:image:alt" content="Besties Craft — Handmade crochet products from Varanasi, India" />
     <meta property="og:locale" content="en_IN" />
 
     <!-- ===================== TWITTER CARD ===================== -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Besties Craft — Handmade Crochet Bags & Accessories India" />
-    <meta name="twitter:description" content="Shop handmade crochet bags, tote bags, accessories & unique craft gifts. Crafted with love in India." />
-    <meta name="twitter:image" content="https://bestiescraft.in/og-image.jpg" />
+    <meta name="twitter:title" content="Besties Craft — Handmade Crochet Bracelets, Woollen Flowers & Gifts India" />
+    <meta name="twitter:description" content="Shop 100% handmade crochet bracelets, woollen flowers, keychains, hair accessories & gifting items. Custom orders. Pan-India delivery." />
+    <meta name="twitter:image" content="https://www.bestiescraft.in/og-image.jpg" />
 
     <!-- ===================== PWA MANIFEST ===================== -->
     <link rel="manifest" href="/manifest.json" />
@@ -46,6 +46,22 @@
     <!-- ===================== PERFORMANCE: PRECONNECT ===================== -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
+
+    <!-- ===================== FONTS (non-render-blocking) ===================== -->
+    <!-- FIX: Replaces @import inside CSS which was render-blocking -->
+    <!-- display=swap means text shows immediately in fallback font while loading -->
+    <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <!-- Fallback for browsers with JS disabled -->
+    <noscript>
+      <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap"
+      />
+    </noscript>
 
     <!-- ===================== STRUCTURED DATA (JSON-LD) ===================== -->
     <script type="application/ld+json">
@@ -53,11 +69,18 @@
       "@context": "https://schema.org",
       "@type": "OnlineStore",
       "name": "Besties Craft",
-      "url": "https://bestiescraft.in",
-      "logo": "https://bestiescraft.in/og-image.jpg",
-      "description": "Handmade crochet bags, accessories and craft gifts crafted with love in India.",
+      "url": "https://www.bestiescraft.in",
+      "logo": "https://www.bestiescraft.in/og-image.jpg",
+      "description": "100% handmade crochet bracelets, woollen flowers, keychains, hair accessories and gifting items crafted with love in Varanasi, India.",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Varanasi",
+        "addressRegion": "Uttar Pradesh",
+        "addressCountry": "IN"
+      },
       "contactPoint": {
         "@type": "ContactPoint",
+        "telephone": "+91-8810776486",
         "contactType": "customer service",
         "availableLanguage": ["English", "Hindi"]
       },
