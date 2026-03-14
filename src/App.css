@@ -1,7 +1,20 @@
+/* ✅ Font display swap — prevents invisible text during font load (FOIT) */
+@font-face {
+  font-family: 'Lato';
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Playfair Display';
+  font-display: swap;
+}
+
 .App {
   min-height: 100vh;
   position: relative;
   z-index: 2;
+  /* ✅ Prevents horizontal scroll causing CLS */
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .hero-gradient {
@@ -27,4 +40,3 @@
 .cart-badge {
   @apply absolute -top-1 -right-1 bg-terracotta text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold;
 }
-
