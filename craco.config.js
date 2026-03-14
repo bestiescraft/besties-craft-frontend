@@ -1,53 +1,16 @@
-// craco.config.js — removes ESLint from build + aggressive bundle splitting + CSS optimization
+// craco.config.js — removes ESLint from build + aggressive bundle splitting
 
 const path = require('path');
 
 module.exports = {
-  style: {
-    css: {
-      loaderOptions: {
-        // ✅ Minimize CSS in production
-      },
-    },
-  },
   webpack: {
     configure: (webpackConfig) => {
 
       // ── REMOVE ESLINT WEBPACK PLUGIN COMPLETELY ────────────────────────
+      // This kills ALL eslint errors during build — nuclear option
       webpackConfig.plugins = webpackConfig.plugins.filter(
         (plugin) => plugin.constructor.name !== 'ESLintWebpackPlugin'
       );
-
-      // ── OPTIMIZE CSS — reduce size of main.css ─────────────────────────
-      // Find MiniCssExtractPlugin and configure it
-      const MiniCssExtractPlugin = webpackConfig.plugins.find(
-        (plugin) => plugin.constructor.name === 'MiniCssExtractPlugin'
-      );
-      if (MiniCssExtractPlugin) {
-        MiniCssExtractPlugin.options = {
-          ...MiniCssExtractPlugin.options,
-          ignoreOrder: true,
-        };
-      }
-
-      // ── MINIMIZE CSS more aggressively ────────────────────────────────
-      if (webpackConfig.optimization && webpackConfig.optimization.minimizer) {
-        webpackConfig.optimization.minimizer.forEach((minimizer) => {
-          if (minimizer.constructor.name === 'CssMinimizerPlugin') {
-            minimizer.options = {
-              ...minimizer.options,
-              minimizerOptions: {
-                preset: ['default', {
-                  discardComments: { removeAll: true },
-                  normalizeWhitespace: true,
-                  minifyFontValues: true,
-                  minifyGradients: true,
-                }],
-              },
-            };
-          }
-        });
-      }
 
       // ── Split chunks aggressively ──────────────────────────────────────
       webpackConfig.optimization.splitChunks = {

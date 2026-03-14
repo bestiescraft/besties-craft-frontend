@@ -13,7 +13,6 @@
     <meta name="theme-color" content="#c2602a" />
     <link rel="canonical" href="https://www.bestiescraft.in/" />
 
-    <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Besties Craft" />
     <meta property="og:title" content="Besties Craft — Handmade Crochet Bracelets, Woollen Flowers & Gifts India" />
@@ -25,30 +24,28 @@
     <meta property="og:image:alt" content="Besties Craft — Handmade crochet products from Varanasi, India" />
     <meta property="og:locale" content="en_IN" />
 
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Besties Craft — Handmade Crochet Bracelets, Woollen Flowers & Gifts India" />
     <meta name="twitter:description" content="Shop 100% handmade crochet bracelets, woollen flowers, keychains, hair accessories & gifting items. Custom orders. Pan-India delivery." />
     <meta name="twitter:image" content="https://www.bestiescraft.in/og-image.jpg" />
 
-    <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="BestiesCraft" />
 
-    <!-- ✅ FIX 1: Preconnect BEFORE any font request — saves ~200ms DNS lookup -->
+    <!-- Preconnect for faster font loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
-    <link rel="preconnect" href="https://besties-craft-backend-1.onrender.com" crossorigin />
-    <link rel="dns-prefetch" href="https://besties-craft-backend-1.onrender.com" />
-    <link rel="dns-prefetch" href="https://firebaseapp.com" />
+    <link rel="dns-prefetch" href="https://api.bestiescraft.in" />
 
-    <!-- ✅ FIX 2: Google Fonts with font-display=swap — prevents render blocking
-         Using &display=swap ensures text shows immediately in fallback font,
-         swapping to the real font once loaded. No blank text = no CLS. -->
+    <!--
+      NON-RENDER-BLOCKING font load:
+      Uses media="print" trick — browser loads it without blocking render,
+      then onload swaps to media="all". This saves ~750ms on mobile.
+    -->
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap"
@@ -62,68 +59,15 @@
       />
     </noscript>
 
-    <!-- ✅ FIX 3: Critical inline CSS — fully prevents CLS and FOUC
-         - Sets exact fallback fonts that match Lato/Playfair metrics
-         - Locks body/html dimensions so no layout shift on load
-         - Prevents white flash before React hydrates -->
+    <!-- Critical inline CSS — renders correctly before fonts arrive -->
     <style>
-      /* Hard reset — no browser margin/padding surprises */
-      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-      html {
-        font-size: 16px;
-        -webkit-text-size-adjust: 100%;
-        scroll-behavior: smooth;
-      }
-
-      body {
-        background: #faf7f2;
-        /* ✅ Fallback font stack that closely matches Lato metrics — reduces CLS */
-        font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;
-        color: #2c1810;
-        line-height: 1.5;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        overflow-x: hidden;
-      }
-
-      #root {
-        min-height: 100vh;
-        /* ✅ Prevents layout shift — root always takes full width */
-        width: 100%;
-        isolation: isolate;
-      }
-
-      /* ✅ Show cream background instantly — no white flash */
-      .App {
-        min-height: 100vh;
-        background: #faf7f2;
-      }
-
-      /* ✅ Navbar placeholder height — prevents content jump when navbar loads */
-      /* Matches our fixed 72px navbar + ~36px announcement bar */
-      .nb-root { min-height: 72px; }
-
-      /* ✅ Page loader styles — inline so spinner shows before JS loads */
-      .page-loader {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #faf7f2;
-      }
-      .page-loader-spinner {
-        width: 36px;
-        height: 36px;
-        border: 3px solid #e8dfd0;
-        border-top-color: #c2602a;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-      }
-      @keyframes spin { to { transform: rotate(360deg); } }
+      *, *::before, *::after { box-sizing: border-box; }
+      body { margin: 0; background: #faf7f2; font-family: sans-serif; }
+      #root { min-height: 100vh; }
+      /* Prevent layout shift while fonts load */
+      body { font-family: 'Lato', sans-serif; }
     </style>
 
-    <!-- ✅ FIX 4: Schema.org structured data -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -156,13 +100,6 @@
         <p>Visit us on <a href="https://www.instagram.com/bestiescraft.in">Instagram</a>.</p>
       </div>
     </noscript>
-
-    <!-- ✅ FIX 5: Inline loader shown instantly before React JS loads
-         Prevents blank white screen during JS parse/download -->
-    <div id="root">
-      <div class="page-loader">
-        <div class="page-loader-spinner"></div>
-      </div>
-    </div>
+    <div id="root"></div>
   </body>
 </html>
