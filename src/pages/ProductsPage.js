@@ -1,706 +1,381 @@
 import { BACKEND_URL, optimizeImageUrl } from '@/lib/constants';
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Minus, Plus, ArrowLeft, CheckCircle, Pencil, Shield, Truck, RefreshCw } from 'lucide-react';
+import { Search, X, ChevronDown } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { useApp } from '@/App';
 import axios from 'axios';
 import { toast } from 'sonner';
+import usePageMeta from '@/hooks/usePageMeta';
 
-// ── Constants ────────────────────────────────────────────────
-const PLACEHOLDER = 'https://via.placeholder.com/600x600/f5f5f0/cccccc?text=No+Image';
-
-const fixImageUrl = (url, width = 800) => optimizeImageUrl(url, { width }) || PLACEHOLDER;
-
-const VALID_CATEGORIES = [
-  { value: 'bracelets',        name: 'Bracelets' },
-  { value: 'handmade-flowers', name: 'Handmade Flowers' },
-  { value: 'keychains',        name: 'Keychains' },
-  { value: 'hair-accessories', name: 'Hair Accessories' },
-  { value: 'gifting-items',    name: 'Gifting Items' },
-  { value: 'crafts',           name: 'Crafts' },
+const CATEGORIES = [
+  { label: 'All Products',     value: '',                 emoji: '✨', seoTitle: 'Shop Handmade Crochet & Woollen Products — Besties Craft India', seoDesc: 'Browse 100% handmade crochet bracelets, woollen flowers, keychains, hair accessories and gifting items. Custom orders. Pan-India delivery from Varanasi.' },
+  { label: 'Bracelets',        value: 'bracelets',        emoji: '📿', seoTitle: 'Handmade Crochet Bracelets Online India — Besties Craft', seoDesc: 'Buy handmade crochet bracelets online in India. Custom colours, friendship bracelets, woollen wrist accessories. Pan-India delivery. Order from Besties Craft, Varanasi.' },
+  { label: 'Handmade Flowers', value: 'handmade-flowers', emoji: '🌸', seoTitle: 'Handmade Woollen Crochet Flowers Online India — Besties Craft', seoDesc: 'Shop handmade woollen and crochet flowers online in India. Perfect as gifts, bouquets and home décor. Custom orders accepted. Pan-India delivery from Varanasi.' },
+  { label: 'Keychains',        value: 'keychains',        emoji: '🔑', seoTitle: 'Handmade Crochet Keychains Online India — Besties Craft', seoDesc: 'Buy cute handmade crochet keychains online in India. Customisable woollen keychains — perfect gifts for friends. Pan-India delivery from Besties Craft, Varanasi.' },
+  { label: 'Hair Accessories', value: 'hair-accessories', emoji: '🎀', seoTitle: 'Handmade Crochet Hair Accessories Online India — Besties Craft', seoDesc: 'Shop handmade crochet and woollen hair accessories online in India — clips, bands, scrunchies and more. Custom orders. Pan-India delivery from Varanasi.' },
+  { label: 'Gifting Items',    value: 'gifting-items',    emoji: '🎁', seoTitle: 'Handmade Crochet Gifting Items Online India — Besties Craft', seoDesc: "Buy unique handmade crochet gifting items online in India. Birthdays, anniversaries, Valentine's Day, festivals — we make the perfect custom handmade gift. Pan-India delivery." },
+  { label: 'Crafts',           value: 'crafts',           emoji: '🎨', seoTitle: 'Handmade Crochet Crafts Online India — Besties Craft', seoDesc: 'Shop unique handmade crochet and woollen crafts online in India. Custom orders accepted. Pan-India delivery from Besties Craft, Varanasi.' },
 ];
 
-const normalizeCategory = (raw) => {
-  if (!raw) return null;
-  const slug = raw.toLowerCase().trim().replace(/\s+/g, '-');
-  const match = VALID_CATEGORIES.find(
-    c => c.value === slug || c.name.toLowerCase() === slug.replace(/-/g, ' ')
-  );
-  return match ? match.name : null;
+const LEGACY_MAP = {
+  scarves: 'handmade-flowers', blankets: 'keychains',
+  bags: 'hair-accessories', wool: 'gifting-items',
+  handmade: 'crafts', general: 'crafts',
 };
 
-const CARE_INSTRUCTIONS = {
-  'bracelets':        ['Hand wash gently in cold water', 'Do not wring or twist', 'Air dry in shade', 'Keep away from moisture when not wearing', 'Store in a dry place'],
-  'handmade-flowers': ['Keep away from direct sunlight to preserve colour', 'Dust gently with a soft dry cloth', 'Do not wet or wash', 'Handle delicately to maintain shape'],
-  'keychains':        ['Wipe with a dry cloth if needed', 'Keep away from water', 'Avoid pulling or stretching', 'Store separately to prevent tangling'],
-  'hair-accessories': ['Hand wash with mild shampoo if needed', 'Air dry completely before use', 'Do not use heat styling on woollen pieces', 'Store flat to maintain shape'],
-  'gifting-items':    ['Keep away from water and moisture', 'Handle with care', 'Store in a cool, dry place', 'Best displayed away from direct sunlight'],
-  'crafts':           ['Handle gently', 'Keep away from water', 'Store in a cool, dry place', 'Avoid rough surfaces'],
-};
-const DEFAULT_CARE = ['Hand wash gently in cold water', 'Air dry in shade', 'Keep away from direct sunlight', 'Store in a cool, dry place'];
+const PLACEHOLDER = 'https://placehold.co/400x400/e8e0d5/a09080?text=Craft';
 
-const PRESET_COLORS = [
-  { name: 'Red',      hex: '#EF4444' }, { name: 'Pink',     hex: '#EC4899' },
-  { name: 'Purple',   hex: '#A855F7' }, { name: 'Blue',     hex: '#3B82F6' },
-  { name: 'Sky Blue', hex: '#38BDF8' }, { name: 'Green',    hex: '#22C55E' },
-  { name: 'Yellow',   hex: '#EAB308' }, { name: 'Orange',   hex: '#F97316' },
-  { name: 'White',    hex: '#F8FAFC' }, { name: 'Black',    hex: '#1E293B' },
-  { name: 'Brown',    hex: '#92400E' }, { name: 'Beige',    hex: '#D4C5A9' },
-  { name: 'Grey',     hex: '#94A3B8' }, { name: 'Cream',    hex: '#FFFBEB' },
-  { name: 'Maroon',   hex: '#7F1D1D' }, { name: 'Navy',     hex: '#1E3A5F' },
+const normalizeCategory = (val) => {
+  if (!val) return '';
+  return LEGACY_MAP[val] || val;
+};
+
+const getCatLabel = (val) => {
+  const normalized = normalizeCategory(val);
+  return CATEGORIES.find(c => c.value === normalized)?.label || val;
+};
+
+const SORT_OPTIONS = [
+  { label: 'Newest First',      value: 'newest'     },
+  { label: 'Price: Low → High', value: 'price_low'  },
+  { label: 'Price: High → Low', value: 'price_high' },
+  { label: 'Top Rated',         value: 'rating'     },
 ];
-const COLOR_MAP = PRESET_COLORS.reduce((acc, c) => { acc[c.name] = c.hex; return acc; }, {});
 
-// ── Dynamic SEO meta + structured data ───────────────────────
-const setProductMeta = (product) => {
-  if (!product) return;
-  const catName = normalizeCategory(product.category) || 'Crochet Product';
-  const title   = `Buy Handmade ${product.name} Online India — Besties Craft`;
-  const desc    = `Buy handmade ${product.name} at ₹${product.base_price}. ${product.description?.slice(0, 110) || 'Handcrafted crochet product made with love in Varanasi, India.'} Custom colours. Pan-India delivery.`;
-  const image   = product.images?.[0]?.url || '';
-  const url     = `https://www.bestiescraft.in/products/${product._id}`;
+const COLOR_MAP = {
+  Red: '#EF4444', Pink: '#EC4899', Purple: '#A855F7', Blue: '#3B82F6',
+  'Sky Blue': '#38BDF8', Green: '#22C55E', Yellow: '#EAB308', Orange: '#F97316',
+  White: '#F5F5F5', Black: '#1E293B', Brown: '#92400E', Beige: '#D4C5A9',
+  Grey: '#94A3B8', Cream: '#FFF9E6', Maroon: '#7F1D1D', Navy: '#1E3A5F',
+};
 
-  document.title = title;
+export default function ProductsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const setMeta = (sel, val) => {
-    let el = document.querySelector(sel);
-    if (!el) {
-      el = document.createElement('meta');
-      if (sel.includes('property=')) el.setAttribute('property', sel.match(/property="([^"]+)"/)[1]);
-      else el.setAttribute('name', sel.match(/name="([^"]+)"/)[1]);
-      document.head.appendChild(el);
-    }
-    el.setAttribute('content', val);
-  };
+  const [products, setProducts] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [search,   setSearch]   = useState('');
+  const [category, setCategory] = useState('');
+  const [sort,     setSort]     = useState('newest');
 
-  setMeta('meta[name="description"]',         desc);
-  setMeta('meta[name="keywords"]',
-    `handmade ${product.name} India, buy ${product.name} online India, crochet ${catName.toLowerCase()} India, Besties Craft, woollen gifts India`
-  );
-  setMeta('meta[property="og:title"]',        title);
-  setMeta('meta[property="og:description"]',  desc);
-  setMeta('meta[property="og:url"]',          url);
-  setMeta('meta[property="og:type"]',         'product');
-  if (image) {
-    setMeta('meta[property="og:image"]',      image);
-    setMeta('meta[property="og:image:alt"]',  `Handmade ${product.name} — Besties Craft India`);
-    setMeta('meta[name="twitter:image"]',     image);
-    setMeta('meta[name="twitter:image:alt"]', `Handmade ${product.name} — Besties Craft India`);
-  }
-  setMeta('meta[name="twitter:title"]',       title);
-  setMeta('meta[name="twitter:description"]', desc);
-  setMeta('meta[name="twitter:card"]',        'summary_large_image');
+  const activeCatObj = CATEGORIES.find(c => c.value === category) || CATEGORIES[0];
+  usePageMeta({
+    title: activeCatObj.seoTitle,
+    description: activeCatObj.seoDesc,
+    url: category ? `/products?category=${category}` : '/products',
+  });
 
-  let canonical = document.querySelector('link[rel="canonical"]');
-  if (!canonical) {
-    canonical = document.createElement('link');
-    canonical.setAttribute('rel', 'canonical');
-    document.head.appendChild(canonical);
-  }
-  canonical.setAttribute('href', url);
-
-  const existing = document.getElementById('product-ld-json');
-  if (existing) existing.remove();
-  const script = document.createElement('script');
-  script.id = 'product-ld-json';
-  script.type = 'application/ld+json';
-  script.textContent = JSON.stringify({
+  const pageSchema = JSON.stringify({
     '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: product.name,
-    description: product.description || `Handmade ${catName} crafted in Varanasi, India.`,
-    image: product.images?.map(img => img.url) || [],
-    brand: { '@type': 'Brand', name: 'Besties Craft' },
-    sku: product._id,
-    category: catName,
-    offers: {
-      '@type': 'Offer',
-      priceCurrency: 'INR',
-      price: product.base_price,
-      availability: (product.in_stock || product.stock > 0)
-        ? 'https://schema.org/InStock'
-        : 'https://schema.org/OutOfStock',
-      seller: { '@type': 'Organization', name: 'Besties Craft', url: 'https://www.bestiescraft.in' },
-      url,
+    '@type': 'CollectionPage',
+    name: activeCatObj.seoTitle,
+    description: activeCatObj.seoDesc,
+    url: `https://www.bestiescraft.in${category ? `/products?category=${category}` : '/products'}`,
+    breadcrumb: {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home',     item: 'https://www.bestiescraft.in/' },
+        { '@type': 'ListItem', position: 2, name: 'Products', item: 'https://www.bestiescraft.in/products' },
+        ...(category ? [{ '@type': 'ListItem', position: 3, name: activeCatObj.label, item: `https://www.bestiescraft.in/products?category=${category}` }] : []),
+      ],
     },
   });
-  document.head.appendChild(script);
-};
-
-// ── Star Rating ──────────────────────────────────────────────
-const StarRating = ({ value = 0, max = 5, size = 18, interactive = false, onChange }) => {
-  const [hovered, setHovered] = useState(0);
-  const display = interactive ? (hovered || value) : value;
-  return (
-    <div style={{ display: 'flex', gap: 2, alignItems: 'center' }} aria-label={`Rating: ${value} out of ${max}`}>
-      {Array.from({ length: max }).map((_, i) => {
-        const filled = i < Math.floor(display);
-        return (
-          <span key={i}
-            onClick={() => interactive && onChange && onChange(i + 1)}
-            onMouseEnter={() => interactive && setHovered(i + 1)}
-            onMouseLeave={() => interactive && setHovered(0)}
-            style={{ cursor: interactive ? 'pointer' : 'default', color: filled ? '#f59e0b' : '#d1d5db', fontSize: size, lineHeight: 1, transition: 'color 0.12s' }}
-            aria-hidden="true"
-          >
-            {filled ? '★' : '☆'}
-          </span>
-        );
-      })}
-    </div>
-  );
-};
-
-const RatingBar = ({ star, count, total }) => {
-  const pct = total > 0 ? (count / total) * 100 : 0;
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.3rem' }}>
-      <span style={{ fontSize: '0.78rem', color: '#9a8070', fontFamily: 'sans-serif', minWidth: 10 }}>{star}</span>
-      <span style={{ color: '#f59e0b', fontSize: 11 }} aria-hidden="true">★</span>
-      <div style={{ flex: 1, height: 7, background: '#f0ebe3', borderRadius: 99, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: '#f59e0b', borderRadius: 99, transition: 'width 0.5s' }} />
-      </div>
-      <span style={{ fontSize: '0.75rem', color: '#9a8070', fontFamily: 'sans-serif', minWidth: 20, textAlign: 'right' }}>{count}</span>
-    </div>
-  );
-};
-
-const ReviewCard = ({ review, index }) => {
-  const initial = (review.reviewer_name || review.user_email || 'A')[0].toUpperCase();
-  const name    = review.reviewer_name || review.user_email?.split('@')[0] || 'Anonymous';
-  const date    = review.createdAt ? new Date(review.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
-  return (
-    <motion.article initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
-      style={{ background: '#fff', borderRadius: 16, border: '1px solid #f0ebe3', padding: '1.25rem 1.4rem', marginBottom: '0.85rem' }}
-      itemScope itemType="https://schema.org/Review"
-    >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg,#c2602a,#5c3d2e)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1rem', fontWeight: 700, fontFamily: 'sans-serif', flexShrink: 0 }} aria-hidden="true">
-          {initial}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.3rem' }}>
-            <span style={{ fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#2c1810' }} itemProp="author">{name}</span>
-            <span style={{ fontSize: '0.72rem', color: '#9a8070', fontFamily: 'sans-serif' }} itemProp="datePublished">{date}</span>
-          </div>
-          <div style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}><StarRating value={review.rating} size={14} /></div>
-          {review.title && <p style={{ fontFamily: 'Georgia,serif', fontWeight: 600, fontSize: '0.92rem', color: '#2c1810', margin: '0 0 0.35rem' }} itemProp="name">{review.title}</p>}
-          {review.comment && <p style={{ fontFamily: 'sans-serif', fontSize: '0.87rem', color: '#4a3728', lineHeight: 1.65, margin: 0 }} itemProp="reviewBody">{review.comment}</p>}
-        </div>
-      </div>
-    </motion.article>
-  );
-};
-
-const ReviewForm = ({ productId, user, onSubmitted }) => {
-  const [rating, setRating]   = useState(0);
-  const [title, setTitle]     = useState('');
-  const [comment, setComment] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen]       = useState(false);
-
-  const submit = async () => {
-    if (!user) { toast.error('Please login to write a review'); return; }
-    if (rating === 0) { toast.error('Please select a star rating'); return; }
-    if (!comment.trim()) { toast.error('Please write a comment'); return; }
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        `${BACKEND_URL}/api/reviews/${productId}`,
-        { user_id: user.id, reviewer_name: user.name || user.email?.split('@')[0] || 'Customer', user_email: user.email || '', rating, title: title.trim(), comment: comment.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      toast.success('Review submitted! Thank you ✦');
-      setRating(0); setTitle(''); setComment(''); setOpen(false);
-      onSubmitted && onSubmitted();
-    } catch { toast.error('Failed to submit review. Please try again.'); }
-    finally { setLoading(false); }
-  };
-
-  const labelSt = { display: 'block', fontFamily: 'sans-serif', fontSize: '0.82rem', fontWeight: 700, color: '#444', marginBottom: '0.4rem' };
-  const inputSt = { width: '100%', padding: '0.75rem 1rem', border: '1.5px solid #e8e4df', borderRadius: '10px', fontFamily: 'sans-serif', fontSize: '0.9rem', color: '#333', background: '#faf7f2', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s' };
-
-  if (!open) return (
-    <button onClick={() => setOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', padding: '0.7rem 1.4rem', border: '1.5px solid #c2602a', borderRadius: '50px', background: 'transparent', color: '#c2602a', fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}>
-      ★ Write a Review
-    </button>
-  );
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      style={{ background: '#fff', borderRadius: 18, border: '1.5px solid #e8dfd0', padding: '1.75rem', marginBottom: '1.5rem' }}>
-      <h3 style={{ fontFamily: 'Playfair Display,Georgia,serif', fontSize: '1.2rem', fontWeight: 700, color: '#2c1810', margin: '0 0 1.25rem' }}>Write a Review</h3>
-      <div style={{ marginBottom: '1.1rem' }}>
-        <label style={labelSt} htmlFor="review-rating">Your Rating *</label>
-        <div id="review-rating" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.4rem' }}>
-          <StarRating value={rating} size={28} interactive onChange={setRating} />
-          {rating > 0 && <span style={{ fontSize: '0.82rem', color: '#9a8070', fontFamily: 'sans-serif' }}>{['','Poor','Fair','Good','Very Good','Excellent'][rating]}</span>}
-        </div>
-      </div>
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={labelSt} htmlFor="review-title">Review Title</label>
-        <input id="review-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="Summarise your experience…" maxLength={100} style={inputSt} />
-      </div>
-      <div style={{ marginBottom: '1.25rem' }}>
-        <label style={labelSt} htmlFor="review-comment">Your Review *</label>
-        <textarea id="review-comment" value={comment} onChange={e => setComment(e.target.value.slice(0, 1000))} placeholder="Share details about quality, colour accuracy, delivery…" maxLength={1000} rows={4}
-          style={{ ...inputSt, resize: 'vertical', minHeight: 100, lineHeight: 1.6 }} />
-        <div style={{ textAlign: 'right', fontSize: '0.72rem', color: '#bbb', fontFamily: 'sans-serif', marginTop: '0.25rem' }}>{comment.length} / 1000</div>
-      </div>
-      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <button onClick={submit} disabled={loading} style={{ padding: '0.75rem 1.75rem', background: '#2c1810', color: '#fff', border: 'none', borderRadius: '50px', fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.9rem', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'Submitting…' : 'Submit Review'}
-        </button>
-        <button onClick={() => setOpen(false)} style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1.5px solid #e8dfd0', borderRadius: '50px', fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#9a8070', cursor: 'pointer' }}>
-          Cancel
-        </button>
-      </div>
-    </motion.div>
-  );
-};
-
-const ReviewsSection = ({ productId, initialReviews = [], initialRating = 0, user }) => {
-  const [reviews, setReviews] = useState(initialReviews);
-  const [loading, setLoading] = useState(false);
-  const [showAll, setShowAll] = useState(false);
-
-  const fetchReviews = async () => {
-    try { setLoading(true); const res = await axios.get(`${BACKEND_URL}/api/reviews/${productId}`); setReviews(res.data.reviews || []); }
-    catch { } finally { setLoading(false); }
-  };
-
-  const avgRating  = reviews.length > 0 ? reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length : initialRating;
-  const starCounts = [5, 4, 3, 2, 1].map(star => ({ star, count: reviews.filter(r => Math.round(r.rating) === star).length }));
-  const displayed  = showAll ? reviews : reviews.slice(0, 4);
-
-  return (
-    <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1.5rem 5rem', boxSizing: 'border-box' }} aria-label="Customer reviews">
-      <hr style={{ border: 'none', borderTop: '1px solid #e8e4df', margin: '0 0 3rem' }} />
-      <h2 style={{ fontFamily: 'Playfair Display,Georgia,serif', fontSize: '1.8rem', fontWeight: 700, color: '#1a1a1a', margin: '0 0 2rem' }}>Customer Reviews</h2>
-      <div style={{ display: 'flex', gap: '2.5rem', alignItems: 'flex-start', marginBottom: '2.5rem', flexWrap: 'wrap' }}>
-        <div style={{ textAlign: 'center', padding: '1.5rem 2rem', background: '#fff', borderRadius: 18, border: '1px solid #f0ebe3', minWidth: 130 }}>
-          <div style={{ fontFamily: 'Playfair Display,Georgia,serif', fontSize: '3.5rem', fontWeight: 700, color: '#2c1810', lineHeight: 1 }}>
-            {reviews.length > 0 ? avgRating.toFixed(1) : '—'}
-          </div>
-          <div style={{ marginTop: '0.4rem', marginBottom: '0.5rem' }}><StarRating value={avgRating} size={16} /></div>
-          <div style={{ fontSize: '0.78rem', color: '#9a8070', fontFamily: 'sans-serif' }}>{reviews.length} review{reviews.length !== 1 ? 's' : ''}</div>
-        </div>
-        <div style={{ flex: 1, paddingTop: '0.5rem', minWidth: 180 }}>
-          {starCounts.map(({ star, count }) => <RatingBar key={star} star={star} count={count} total={reviews.length} />)}
-        </div>
-      </div>
-      <div style={{ marginBottom: '2rem' }}><ReviewForm productId={productId} user={user} onSubmitted={fetchReviews} /></div>
-      {loading ? (
-        <p style={{ color: '#9a8070', fontFamily: 'sans-serif', fontSize: '0.9rem' }}>Loading reviews…</p>
-      ) : reviews.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem 1rem', background: '#fff', borderRadius: 18, border: '1px solid #f0ebe3' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }} aria-hidden="true">✍️</div>
-          <p style={{ fontFamily: 'Playfair Display,Georgia,serif', fontSize: '1.1rem', color: '#2c1810', margin: '0 0 0.4rem' }}>No reviews yet</p>
-          <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', color: '#9a8070', margin: 0 }}>Be the first to share your experience!</p>
-        </div>
-      ) : (
-        <>
-          <AnimatePresence>
-            {displayed.map((review, i) => <ReviewCard key={review._id || i} review={review} index={i} />)}
-          </AnimatePresence>
-          {reviews.length > 4 && (
-            <button onClick={() => setShowAll(s => !s)} style={{ display: 'block', margin: '1.25rem auto 0', padding: '0.7rem 2rem', background: 'transparent', border: '1.5px solid #e8dfd0', borderRadius: '50px', fontFamily: 'sans-serif', fontWeight: 700, fontSize: '0.88rem', color: '#9a8070', cursor: 'pointer' }}>
-              {showAll ? 'Show Less' : `Show All ${reviews.length} Reviews`}
-            </button>
-          )}
-        </>
-      )}
-    </section>
-  );
-};
-
-// ── Main Page ────────────────────────────────────────────────
-const ProductDetailPage = () => {
-  const { id }                      = useParams();
-  const navigate                    = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { cart, setCart, user }     = useApp();
-
-  const [product,         setProduct]        = useState(null);
-  const [relatedProducts, setRelatedProducts] = useState([]);
-  const [quantity,        setQuantity]        = useState(1);
-  const [loading,         setLoading]         = useState(true);
-  const [selectedImage,   setSelectedImage]   = useState(0);
-  const [customisation,   setCustomisation]   = useState('');
-  const colorFromUrl                          = searchParams.get('color');
-  const [selectedColor,   setSelectedColor]   = useState(colorFromUrl || null);
-
-  const fetchProduct = useCallback(async () => {
-    try {
-      setLoading(true); setSelectedImage(0); setCustomisation('');
-      const res = await axios.get(`${BACKEND_URL}/api/products/${id}`);
-      setProduct(res.data.product);
-    } catch (err) { toast.error(err?.response?.data?.detail || 'Unable to fetch product'); }
-    finally { setLoading(false); }
-  }, [id]);
-
-  const fetchRelated = async (category, currentId) => {
-    try {
-      const res = await axios.get(`${BACKEND_URL}/api/products?category=${category}&sort=newest`);
-      setRelatedProducts((res.data.products || []).filter(p => p._id !== currentId).slice(0, 4));
-    } catch { setRelatedProducts([]); }
-  };
-
-  useEffect(() => { if (id) fetchProduct(); }, [id, fetchProduct]);
 
   useEffect(() => {
-    if (product) {
-      setProductMeta(product);
-      if (product.colors?.length > 0) {
-        if (colorFromUrl && product.colors.includes(colorFromUrl)) {
-          setSelectedColor(colorFromUrl);
-        } else {
-          setSelectedColor(product.colors[0]);
-          setSearchParams({ color: product.colors[0] }, { replace: true });
-        }
-      }
-      if (product.category) fetchRelated(product.category, product._id);
+    const params = new URLSearchParams(location.search);
+    setCategory(normalizeCategory(params.get('category') || ''));
+  }, [location.search]);
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({ sort });
+      const res = await axios.get(`${BACKEND_URL}/api/products?${params}`);
+      setProducts(res.data.products || []);
+    } catch {
+      toast.error('Failed to load products');
+      setProducts([]);
+    } finally {
+      setLoading(false);
     }
-  }, [product]);
+  }, [sort]);
 
-  const handleColorSelect = (colorName) => {
-    setSelectedColor(colorName);
-    setSearchParams({ color: colorName }, { replace: true });
-  };
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  const addToCart = () => {
-    if (!product) return;
-    if (product.colors?.length > 0 && !selectedColor) { toast.error('Please select a colour first'); return; }
-    const customKey = customisation.trim();
-    const existing  = cart.find(item => item.product_id === product._id && item.color === selectedColor && (item.customisation || '') === customKey);
-    const newCart   = existing
-      ? cart.map(item => item.product_id === product._id && item.color === selectedColor && (item.customisation || '') === customKey
-          ? { ...item, quantity: item.quantity + quantity } : item)
-      : [...cart, {
-          product_id:   product._id,
-          product_name: product.name,
-          price:        product.base_price,
-          image:        product.images?.length > 0 ? fixImageUrl(product.images[0].url) : '',
-          quantity,
-          color:        selectedColor || null,
-          customisation: customKey || null,
-        }];
-    setCart(newCart);
-    toast.success(`${product.name}${selectedColor ? ` (${selectedColor})` : ''}${customKey ? ' with custom note' : ''} added to cart!`);
-    setCustomisation('');
-  };
+  const filtered = products.filter(p => {
+    const matchSearch = !search.trim() ||
+      p.name?.toLowerCase().includes(search.toLowerCase()) ||
+      p.description?.toLowerCase().includes(search.toLowerCase());
 
-  const getImages = () => product?.images?.length > 0 ? product.images.map(img => fixImageUrl(img.url)) : [PLACEHOLDER];
+    const rawCats = [
+      ...(Array.isArray(p.categories) ? p.categories : p.categories ? [p.categories] : []),
+      ...(p.category && !Array.isArray(p.category) ? [p.category] : []),
+    ];
+    const productCats = [...new Set(rawCats.map(normalizeCategory).filter(Boolean))];
+    const matchCat = !category || productCats.includes(category);
 
-  if (loading) return (
-    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', background:'#f8f7f4' }}>
-      <Navbar /><div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={st.spinner} aria-label="Loading product" /></div>
-    </div>
-  );
-  if (!product) return (
-    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', background:'#f8f7f4' }}>
-      <Navbar /><div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'1rem' }}>
-        <p style={{ color:'#888', fontFamily:'sans-serif' }}>Product not found</p>
-        <button style={st.backBtn} onClick={() => navigate('/products')}>← Back to Products</button>
-      </div>
-    </div>
-  );
+    return matchSearch && matchCat;
+  });
 
-  const images          = getImages();
-  const inStock         = (product.in_stock === true) || (product.stock !== undefined && product.stock > 0);
-  const colors          = product.colors || [];
-  const displayCategory = normalizeCategory(product.category);
-  const careList        = CARE_INSTRUCTIONS[product.category?.toLowerCase().replace(/\s+/g, '-')] || DEFAULT_CARE;
+  const hasFilters  = search || category || sort !== 'newest';
+  const clearFilter = () => { setSearch(''); setCategory(''); setSort('newest'); navigate('/products'); };
+  const activeCatLabel = CATEGORIES.find(c => c.value === category)?.label || 'All Products';
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: pageSchema }} />
+
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Lato:wght@300;400;700&display=swap');
-        .pdp-page{background:#f8f7f4;min-height:100vh;display:flex;flex-direction:column;}
-        .pdp-wrap{max-width:1100px;margin:0 auto;padding:2rem 1.5rem 4rem;width:100%;box-sizing:border-box;}
-        .pdp-grid{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;}
-        .pdp-custom-wrap{margin-bottom:1.5rem;}
-        .pdp-custom-label{display:flex;align-items:center;gap:.45rem;font-family:'Lato',sans-serif;font-size:.85rem;font-weight:700;color:#444;margin-bottom:.5rem;}
-        .pdp-custom-sublabel{font-size:.75rem;color:#9a8070;font-family:'Lato',sans-serif;margin-bottom:.65rem;line-height:1.5;display:block;}
-        .pdp-custom-textarea{width:100%;min-height:100px;padding:.85rem 1rem;border:1.5px solid #e8e4df;border-radius:12px;font-size:.9rem;font-family:'Lato',sans-serif;color:#333;background:#fff;resize:vertical;outline:none;transition:border-color .18s,box-shadow .18s;box-sizing:border-box;line-height:1.6;}
-        .pdp-custom-textarea:focus{border-color:#c2602a;box-shadow:0 0 0 3px rgba(194,96,42,.1);}
-        .pdp-custom-textarea::placeholder{color:#bbb;font-size:.85rem;}
-        .pdp-custom-counter{text-align:right;font-size:.72rem;color:#bbb;font-family:'Lato',sans-serif;margin-top:.3rem;}
-        .pdp-custom-badge{display:inline-flex;align-items:center;gap:.3rem;background:rgba(194,96,42,.1);color:#c2602a;font-size:.7rem;font-weight:700;text-transform:uppercase;padding:.2rem .6rem;border-radius:20px;margin-left:.4rem;}
-        .pdp-info-tabs{margin-top:2rem;border-top:1px solid #e8e4df;padding-top:1.5rem;}
-        .pdp-info-row{display:flex;flex-direction:column;gap:.6rem;}
-        .pdp-info-item{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:#faf7f2;border-radius:10px;font-family:'Lato',sans-serif;font-size:.85rem;color:#4a3728;}
-        .pdp-care-section{margin-top:1.5rem;padding:1.25rem;background:#fff;border-radius:14px;border:1px solid #e8dfd0;}
-        .pdp-care-title{font-family:'Playfair Display',Georgia,serif;font-size:1rem;font-weight:700;color:#2c1810;margin:0 0 .75rem;}
-        .pdp-care-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.4rem;}
-        .pdp-care-item{font-family:'Lato',sans-serif;font-size:.82rem;color:#5c3d2e;display:flex;align-items:flex-start;gap:.5rem;line-height:1.5;}
-        .pdp-care-dot{color:#c2602a;flex-shrink:0;margin-top:2px;}
-        .pdp-seo-text{max-width:1100px;margin:0 auto;padding:0 1.5rem 2rem;box-sizing:border-box;}
-        .pdp-seo-text p{font-family:'Lato',sans-serif;font-size:.82rem;color:#9a8070;line-height:1.75;}
-        @media(max-width:768px){
-          .pdp-wrap{padding:1rem 0 3rem;} .pdp-back{margin:0 1rem 1.25rem!important;}
-          .pdp-grid{grid-template-columns:1fr!important;gap:0!important;}
-          .pdp-main-img-wrap{border-radius:0!important;border-left:none!important;border-right:none!important;aspect-ratio:1!important;}
-          .pdp-thumb-row{padding:0 1rem!important;} .pdp-info-col{padding:1.25rem 1rem 0!important;}
-          .pdp-product-name{font-size:1.6rem!important;} .pdp-price{font-size:1.7rem!important;}
-          .pdp-related-grid{grid-template-columns:repeat(2,1fr)!important;gap:.75rem!important;}
-          .pdp-related-section{padding:2rem 1rem!important;} .pdp-related-img{height:150px!important;}
+        :root {
+          --cream: #faf7f2; --warm: #f2ede4; --sand: #e8dfd0;
+          --terracotta: #c2602a; --brown: #5c3d2e; --dark: #2c1810;
+          --text: #4a3728; --muted: #9a8070;
         }
-        @media(max-width:380px){.pdp-related-grid{grid-template-columns:1fr!important;}}
-        .pdp-related-section{max-width:1100px;margin:0 auto;padding:3rem 1.5rem 2rem;width:100%;box-sizing:border-box;}
-        .pdp-related-title{font-family:'Playfair Display',Georgia,serif;font-size:1.6rem;font-weight:700;color:#1a1a1a;margin:0 0 1.5rem;}
-        .pdp-related-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;}
-        .pdp-related-card{background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e8e4df;cursor:pointer;transition:transform .22s,box-shadow .22s;}
-        .pdp-related-card:hover{transform:translateY(-5px);box-shadow:0 16px 40px rgba(0,0,0,.1);}
-        .pdp-related-img{height:180px;overflow:hidden;background:#f5f0ea;}
-        .pdp-related-img img{width:100%;height:100%;object-fit:cover;transition:transform .4s ease;}
-        .pdp-related-card:hover .pdp-related-img img{transform:scale(1.06);}
-        .pdp-related-body{padding:.85rem 1rem 1rem;}
-        .pdp-related-name{font-family:'Playfair Display',serif;font-size:.88rem;font-weight:600;color:#1a1a1a;margin:0 0 .4rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-        .pdp-related-price{font-family:sans-serif;font-size:.95rem;font-weight:700;color:#5c3d2e;}
-        .pdp-related-colors{display:flex;gap:3px;margin-bottom:.4rem;flex-wrap:wrap;}
-        .pdp-color-dot{width:10px;height:10px;border-radius:50%;border:1.5px solid rgba(0,0,0,.1);}
-        .pdp-divider{border:none;border-top:1px solid #e8e4df;margin:0;width:100%;}
-        @keyframes spin{to{transform:rotate(360deg);}}
+        .pp-page { background: var(--cream); min-height: 100vh; font-family: 'Lato', sans-serif; }
+
+        .pp-header { background: var(--warm); border-bottom: 1px solid var(--sand); padding: 2rem 2rem 1.5rem; }
+        .pp-header-inner { max-width: 1180px; margin: 0 auto; }
+        .pp-breadcrumb { display: flex; align-items: center; gap: .4rem; margin-bottom: .85rem; }
+        .pp-bc-link { background: none; border: none; cursor: pointer; padding: 0; font-size: .78rem; color: var(--muted); font-family: 'Lato', sans-serif; transition: color .15s; }
+        .pp-bc-link:hover { color: var(--dark); }
+        .pp-bc-sep { color: var(--sand); font-size: .78rem; }
+        .pp-title { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(1.6rem, 2.8vw, 2.2rem); font-weight: 700; color: var(--dark); margin: 0 0 .3rem; }
+        .pp-seo-sub { font-size: .82rem; color: var(--muted); font-family: 'Lato', sans-serif; max-width: 640px; line-height: 1.5; margin: .3rem 0 0; }
+        .pp-count { font-size: .82rem; color: var(--muted); font-family: 'Lato', sans-serif; margin-top: .3rem; }
+
+        .pp-toolbar { background: #fff; border-bottom: 1px solid var(--sand); padding: .75rem 2rem; position: sticky; top: 68px; z-index: 40; box-shadow: 0 2px 10px rgba(44,24,16,.05); }
+        .pp-toolbar-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; }
+        .pp-search-wrap { position: relative; flex: 1; min-width: 180px; }
+        .pp-search-icon { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+        .pp-search { width: 100%; padding: .55rem .9rem .55rem 2.4rem; border: 1.5px solid var(--sand); border-radius: 50px; font-size: .86rem; font-family: 'Lato', sans-serif; background: var(--cream); color: var(--dark); outline: none; transition: border-color .15s; box-sizing: border-box; }
+        .pp-search:focus { border-color: var(--terracotta); }
+        .pp-sort-wrap { position: relative; }
+        .pp-sort { appearance: none; -webkit-appearance: none; padding: .55rem 2.4rem .55rem 1rem; border: 1.5px solid var(--sand); border-radius: 50px; font-size: .84rem; font-family: 'Lato', sans-serif; background: var(--cream); color: var(--dark); cursor: pointer; outline: none; transition: border-color .15s; }
+        .pp-sort:focus { border-color: var(--terracotta); }
+        .pp-sort-icon { position: absolute; right: .75rem; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); }
+        .pp-clear-btn { display: flex; align-items: center; gap: .3rem; padding: .52rem 1rem; border-radius: 50px; border: 1.5px solid #fecdd3; background: #fff1f2; font-size: .78rem; font-family: 'Lato', sans-serif; color: #be123c; cursor: pointer; transition: all .15s; white-space: nowrap; }
+        .pp-clear-btn:hover { background: #ffe4e6; }
+
+        .pp-cat-bar { padding: .7rem 2rem; background: var(--warm); border-bottom: 1px solid var(--sand); overflow-x: auto; scrollbar-width: none; }
+        .pp-cat-bar::-webkit-scrollbar { display: none; }
+        .pp-cat-inner { max-width: 1180px; margin: 0 auto; display: flex; gap: .45rem; align-items: center; }
+        .pp-cat-pill { display: flex; align-items: center; gap: .3rem; padding: .4rem 1rem; border-radius: 50px; white-space: nowrap; border: 1.5px solid var(--sand); background: transparent; font-size: .8rem; font-family: 'Lato', sans-serif; color: var(--text); cursor: pointer; transition: all .15s; font-weight: 600; }
+        .pp-cat-pill:hover { border-color: var(--terracotta); color: var(--terracotta); }
+        .pp-cat-pill.active { background: var(--dark); border-color: var(--dark); color: #fff; }
+
+        .pp-body { max-width: 1180px; margin: 0 auto; padding: 2rem 2rem 4rem; }
+        .pp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.35rem; }
+        .pp-card { background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid var(--sand); cursor: pointer; transition: transform .2s, box-shadow .2s; font-family: 'Lato', sans-serif; }
+        .pp-card:hover { transform: translateY(-5px); box-shadow: 0 16px 40px rgba(44,24,16,.12); }
+        .pp-card-img { height: 210px; overflow: hidden; background: var(--warm); position: relative; }
+        .pp-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s ease; }
+        .pp-card:hover .pp-card-img img { transform: scale(1.06); }
+        .pp-card-img-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 2.8rem; background: var(--warm); }
+        .pp-card-body { padding: 1rem 1.1rem 1.2rem; }
+        .pp-card-cats { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: .35rem; }
+        .pp-card-cat { font-size: .6rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--terracotta); background: rgba(194,96,42,.08); padding: .13rem .45rem; border-radius: 20px; }
+        .pp-card-name { font-family: 'Playfair Display', serif; font-size: .95rem; font-weight: 600; color: var(--dark); margin: 0 0 .5rem; line-height: 1.28; }
+        .pp-card-colors { display: flex; gap: 4px; margin-bottom: .55rem; flex-wrap: wrap; align-items: center; }
+        .pp-color-dot { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,.12); }
+        .pp-card-footer { display: flex; align-items: center; justify-content: space-between; }
+        .pp-card-price { font-size: 1rem; font-weight: 700; color: var(--brown); }
+        .pp-badge { font-size: .63rem; font-weight: 700; padding: .2rem .55rem; border-radius: 20px; }
+        .pp-badge-in { background: #d1fae5; color: #065f46; }
+        .pp-badge-out { background: #fee2e2; color: #991b1b; }
+
+        .pp-empty { grid-column: 1 / -1; text-align: center; padding: 4rem 2rem; }
+        .pp-empty-icon { font-size: 3rem; margin-bottom: .85rem; display: block; }
+        .pp-empty-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--dark); margin-bottom: .4rem; }
+        .pp-empty-sub { font-size: .86rem; color: var(--muted); }
+
+        .pp-skeleton { background: linear-gradient(90deg, var(--warm) 25%, var(--sand) 50%, var(--warm) 75%); background-size: 200% 100%; animation: pp-shimmer 1.4s infinite; border-radius: 16px; height: 290px; }
+        @keyframes pp-shimmer { to { background-position: -200% 0; } }
+
+        .pp-seo-block { grid-column: 1 / -1; background: var(--warm); border-radius: 14px; border: 1px solid var(--sand); padding: 1.75rem; margin-top: 1.25rem; }
+        .pp-seo-block h2 { font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; color: var(--dark); margin: 0 0 .65rem; }
+        .pp-seo-block p { font-size: .8rem; color: var(--muted); line-height: 1.75; margin: 0; }
+
+        @media (max-width: 1024px) { .pp-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 768px)  { .pp-grid { grid-template-columns: repeat(2, 1fr); } .pp-toolbar { top: 60px; } .pp-body { padding: 1.5rem 1rem 3rem; } .pp-header { padding: 1.5rem 1rem 1.25rem; } }
+        @media (max-width: 420px)  { .pp-grid { grid-template-columns: 1fr; } }
       `}</style>
 
-      <div className="pdp-page">
+      <div className="pp-page">
         <Navbar />
 
-        <div className="pdp-wrap">
-          <nav aria-label="Breadcrumb" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8070', fontSize: '0.78rem', fontFamily: 'sans-serif', padding: 0 }}>Home</button>
-            <span style={{ color: '#c8bfb5', fontSize: '0.78rem' }} aria-hidden="true">›</span>
-            <button onClick={() => navigate('/products')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8070', fontSize: '0.78rem', fontFamily: 'sans-serif', padding: 0 }}>Products</button>
-            {displayCategory && (
-              <>
-                <span style={{ color: '#c8bfb5', fontSize: '0.78rem' }} aria-hidden="true">›</span>
-                <button onClick={() => navigate(`/products?category=${product.category}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8070', fontSize: '0.78rem', fontFamily: 'sans-serif', padding: 0 }}>{displayCategory}</button>
-              </>
-            )}
-            <span style={{ color: '#c8bfb5', fontSize: '0.78rem' }} aria-hidden="true">›</span>
-            <span style={{ color: '#2c1810', fontSize: '0.78rem', fontFamily: 'sans-serif' }}>{product.name}</span>
-          </nav>
-
-          <button className="pdp-back" style={st.backBtn} onClick={() => navigate(-1)}>
-            <ArrowLeft size={16} aria-hidden="true" /> Back to Products
-          </button>
-
-          <div className="pdp-grid">
-            {/* Gallery */}
-            <motion.div initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} transition={{duration:.45}} style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
-              <div className="pdp-main-img-wrap" style={st.mainImgWrap}>
-                <img
-                  src={images[selectedImage]}
-                  alt={`Handmade ${product.name} — ${displayCategory || 'Crochet product'} by Besties Craft India`}
-                  style={st.mainImg}
-                  width="600"
-                  height="600"
-                  onError={e=>{e.target.src=PLACEHOLDER;}}
-                />
-              </div>
-              {images.length > 1 && (
-                <div className="pdp-thumb-row" style={st.thumbRow} role="list" aria-label="Product images">
-                  {images.map((img,i) => (
-                    <button key={i} onClick={()=>setSelectedImage(i)} style={{...st.thumbBtn,...(selectedImage===i?st.thumbBtnActive:{})}} aria-label={`View image ${i+1}`} aria-pressed={selectedImage===i}>
-                      <img src={img} alt={`${product.name} view ${i+1}`} style={st.thumbImg} loading="lazy" onError={e=>{e.target.src=PLACEHOLDER;}} />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-
-            {/* Info */}
-            <motion.div initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} transition={{duration:.45,delay:.15}} className="pdp-info-col" style={st.infoCol}>
-              {displayCategory && (
-                <span style={st.categoryTag}>
-                  <a href={`/products?category=${product.category}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                    {displayCategory.toUpperCase()}
-                  </a>
-                </span>
-              )}
-
-              <h1 className="pdp-product-name" style={st.productName}>{product.name}</h1>
-
-              {product.reviews_count > 0 && (
-                <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.85rem'}}>
-                  <StarRating value={product.rating||0} size={15}/>
-                  <span style={{fontSize:'.8rem',color:'#9a8070',fontFamily:'sans-serif'}}>
-                    {(product.rating||0).toFixed(1)} ({product.reviews_count} review{product.reviews_count!==1?'s':''})
-                  </span>
-                </div>
-              )}
-
-              <div style={st.priceRow}>
-                <span className="pdp-price" style={st.price}>₹{parseFloat(product.base_price).toLocaleString('en-IN')}</span>
-                {inStock
-                  ? <span style={st.inStockBadge}><CheckCircle size={13} aria-hidden="true"/> In Stock</span>
-                  : <span style={st.outStockBadge}>Out of Stock</span>}
-              </div>
-
-              {product.description && <p style={st.description}>{product.description}</p>}
-
-              {inStock && (
+        <header className="pp-header">
+          <div className="pp-header-inner">
+            <nav className="pp-breadcrumb" aria-label="Breadcrumb">
+              <button className="pp-bc-link" onClick={() => navigate('/')}>Home</button>
+              <span className="pp-bc-sep" aria-hidden="true">›</span>
+              {category ? (
                 <>
-                  {colors.length > 0 && (
-                    <div style={st.section}>
-                      <div style={st.sectionLabel}>Colour:&nbsp;<span style={st.selectedColorName}>{selectedColor||'—'}</span></div>
-                      <div style={st.swatchRow} role="group" aria-label="Select colour">
-                        {colors.map(colorName => {
-                          const preset = PRESET_COLORS.find(p => p.name === colorName);
-                          const isSelected = selectedColor === colorName;
-                          return (
-                            <button key={colorName} title={colorName} aria-label={`Select colour: ${colorName}`} aria-pressed={isSelected}
-                              onClick={() => handleColorSelect(colorName)}
-                              style={{...st.swatch, background: preset?.hex||'#ccc', ...(isSelected?st.swatchSelected:{})}}>
-                              {isSelected && <span style={st.swatchCheck} aria-hidden="true">✓</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {selectedColor && <p style={{margin:'.5rem 0 0',fontSize:'.82rem',color:'#888',fontFamily:'sans-serif'}}>Selected: <strong style={{color:'#333'}}>{selectedColor}</strong></p>}
-                    </div>
-                  )}
-
-                  <div style={st.section}>
-                    <div style={st.sectionLabel}>Quantity</div>
-                    <div style={st.qtyRow}>
-                      <button style={st.qtyBtn} onClick={()=>setQuantity(q=>Math.max(1,q-1))} disabled={quantity<=1} aria-label="Decrease quantity"><Minus size={16} aria-hidden="true"/></button>
-                      <span style={st.qtyNum} aria-live="polite">{quantity}</span>
-                      <button style={st.qtyBtn} onClick={()=>setQuantity(q=>q+1)} aria-label="Increase quantity"><Plus size={16} aria-hidden="true"/></button>
-                    </div>
-                  </div>
-
-                  <div className="pdp-custom-wrap">
-                    <div className="pdp-custom-label"><Pencil size={14} aria-hidden="true"/> Customisation <span className="pdp-custom-badge">✦ Optional</span></div>
-                    <span className="pdp-custom-sublabel">Since everything is handmade, you can personalise your order. Tell us colours, name, size, pattern, occasion — anything you'd like.</span>
-                    <textarea
-                      className="pdp-custom-textarea"
-                      placeholder="e.g. Please make it in light pink with my name 'Priya' — it's for a birthday gift…"
-                      value={customisation}
-                      onChange={e=>setCustomisation(e.target.value.slice(0,500))}
-                      maxLength={500}
-                      aria-label="Customisation request"
-                    />
-                    <div className="pdp-custom-counter">{customisation.length} / 500</div>
-                  </div>
-
-                  <button style={st.cartBtn} onClick={addToCart} aria-label={`Add ${product.name} to cart`}>
-                    <ShoppingCart size={20} aria-hidden="true"/>
-                    {customisation.trim() ? 'Add to Cart with Customisation' : 'Add to Cart'}
-                  </button>
-                  {customisation.trim() && <p style={{marginTop:'.65rem',fontSize:'.78rem',color:'#9a8070',fontFamily:'sans-serif',textAlign:'center',lineHeight:1.5}}>✦ Your customisation note will be sent to us with the order</p>}
+                  <button className="pp-bc-link" onClick={() => navigate('/products')}>Products</button>
+                  <span className="pp-bc-sep" aria-hidden="true">›</span>
+                  <span style={{ fontSize: '.78rem', color: 'var(--dark)', fontFamily: 'Lato,sans-serif' }}>{activeCatLabel}</span>
                 </>
+              ) : (
+                <span style={{ fontSize: '.78rem', color: 'var(--dark)', fontFamily: 'Lato,sans-serif' }}>Products</span>
               )}
+            </nav>
+            <h1 className="pp-title">
+              {category ? `Handmade ${activeCatLabel} — Besties Craft India` : 'Handmade Crochet & Woollen Products India'}
+            </h1>
+            <p className="pp-seo-sub">{activeCatObj.seoDesc}</p>
+            {!loading && <p className="pp-count">{filtered.length} item{filtered.length !== 1 ? 's' : ''}</p>}
+          </div>
+        </header>
 
-              {!inStock && <div style={st.outOfStockBox}><p style={{margin:0,color:'#be123c',fontWeight:600}}>This product is currently out of stock.</p></div>}
-
-              <div className="pdp-info-tabs">
-                <div className="pdp-info-row">
-                  <div className="pdp-info-item"><Truck size={16} style={{color:'#c2602a'}} aria-hidden="true"/> Pan-India delivery · Live rates at checkout</div>
-                  <div className="pdp-info-item"><Shield size={16} style={{color:'#c2602a'}} aria-hidden="true"/> Secure payment via Razorpay (UPI, Cards, Net Banking)</div>
-                  <div className="pdp-info-item"><RefreshCw size={16} style={{color:'#c2602a'}} aria-hidden="true"/> Issue with order? WhatsApp us within 48 hrs — we'll fix it</div>
-                </div>
-                <div className="pdp-care-section">
-                  <h2 className="pdp-care-title">🧶 Care Instructions</h2>
-                  <ul className="pdp-care-list">
-                    {careList.map((item, i) => (
-                      <li key={i} className="pdp-care-item">
-                        <span className="pdp-care-dot" aria-hidden="true">✦</span>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </motion.div>
+        <div className="pp-toolbar" role="search" aria-label="Filter products">
+          <div className="pp-toolbar-inner">
+            <div className="pp-search-wrap">
+              <Search size={13} className="pp-search-icon" aria-hidden="true" />
+              <input
+                className="pp-search"
+                type="search"
+                placeholder="Search handmade crochet products…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                aria-label="Search products"
+              />
+            </div>
+            <div className="pp-sort-wrap">
+              <select className="pp-sort" value={sort} onChange={e => setSort(e.target.value)} aria-label="Sort products">
+                {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <ChevronDown size={13} className="pp-sort-icon" aria-hidden="true" />
+            </div>
+            {hasFilters && (
+              <button className="pp-clear-btn" onClick={clearFilter} aria-label="Clear all filters">
+                <X size={11} aria-hidden="true" /> Clear filters
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="pdp-seo-text">
-          <p>
-            Handmade {product.name} by Besties Craft — crafted with love in Varanasi, India.
-            {displayCategory ? ` This ${displayCategory.toLowerCase()} is ` : ' '}
-            100% handmade with premium quality materials. Fully customisable — choose your
-            colour, add a personal message or name. Delivered pan-India. Secure payment via
-            Razorpay. Custom orders welcome — WhatsApp +91 88107 76486.
-          </p>
-        </div>
+        <nav className="pp-cat-bar" aria-label="Product categories">
+          <div className="pp-cat-inner">
+            {CATEGORIES.map(cat => (
+              <button key={cat.value}
+                className={`pp-cat-pill${category === cat.value ? ' active' : ''}`}
+                aria-pressed={category === cat.value}
+                onClick={() => {
+                  setCategory(cat.value);
+                  navigate(cat.value ? `/products?category=${cat.value}` : '/products');
+                }}>
+                {cat.emoji} {cat.label}
+              </button>
+            ))}
+          </div>
+        </nav>
 
-        <ReviewsSection productId={id} initialReviews={product.reviews||[]} initialRating={product.rating||0} user={user}/>
-
-        {relatedProducts.length > 0 && (
-          <>
-            <hr className="pdp-divider"/>
-            <section className="pdp-related-section" aria-label="You may also like">
-              <h2 className="pdp-related-title">✨ You May Also Like</h2>
-              <div className="pdp-related-grid">
-                {relatedProducts.map((rp, i) => (
-                  <motion.article key={rp._id} className="pdp-related-card" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:i*.08}}
-                    onClick={() => { navigate(`/products/${rp._id}`); window.scrollTo(0,0); }}
-                    aria-label={`View ${rp.name}`}
-                  >
-                    <div className="pdp-related-img">
-                      <img
-                        src={rp.images?.[0]?.url ? fixImageUrl(rp.images[0].url) : PLACEHOLDER}
-                        alt={`Handmade ${rp.name} — Besties Craft India`}
-                        loading="lazy"
-                        width="400"
-                        height="180"
-                        onError={e=>{e.target.src=PLACEHOLDER;}}
-                      />
-                    </div>
-                    <div className="pdp-related-body">
-                      {rp.colors?.length > 0 && <div className="pdp-related-colors">{rp.colors.slice(0,5).map(c => <div key={c} className="pdp-color-dot" style={{background:COLOR_MAP[c]||'#ccc'}} title={c}/>)}</div>}
-                      <div className="pdp-related-name">{rp.name}</div>
-                      <div className="pdp-related-price">₹{parseFloat(rp.base_price).toLocaleString('en-IN')}</div>
-                    </div>
-                  </motion.article>
-                ))}
+        <main className="pp-body">
+          <div className="pp-grid" role="list" aria-label="Product listing">
+            {loading ? (
+              Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="pp-skeleton" role="listitem" aria-label="Loading product" />
+              ))
+            ) : filtered.length === 0 ? (
+              <div className="pp-empty" role="listitem">
+                <span className="pp-empty-icon" aria-hidden="true">🧺</span>
+                <div className="pp-empty-title">No products found</div>
+                <div className="pp-empty-sub">
+                  {hasFilters ? 'Try clearing your filters.' : 'Check back soon — more handcrafted items coming!'}
+                </div>
               </div>
-            </section>
-          </>
-        )}
+            ) : (
+              <AnimatePresence>
+                {filtered.map((product, i) => {
+                  const rawCats = [
+                    ...(Array.isArray(product.categories) ? product.categories : product.categories ? [product.categories] : []),
+                    ...(product.category && !Array.isArray(product.category) ? [product.category] : []),
+                  ];
+                  const productCats = [...new Set(rawCats.map(normalizeCategory).filter(Boolean))];
 
-        <Footer/>
+                  return (
+                    <motion.article
+                      key={product._id}
+                      className="pp-card"
+                      role="listitem"
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ delay: Math.min(i * 0.04, 0.25) }}
+                      onClick={() => navigate(`/products/${product._id}`)}
+                      aria-label={`${product.name} — ₹${parseFloat(product.base_price).toLocaleString('en-IN')}`}
+                    >
+                      <div className="pp-card-img">
+                        {product.images?.[0]?.url
+                          ? <img
+                              src={product.images[0].url}
+                              alt={`Handmade ${product.name} — ${getCatLabel(productCats[0] || '')} by Besties Craft India`}
+                              loading="lazy"
+                              width="400"
+                              height="210"
+                              onError={e => { e.target.src = PLACEHOLDER; }}
+                            />
+                          : <div className="pp-card-img-ph" aria-hidden="true">🌸</div>}
+                      </div>
+                      <div className="pp-card-body">
+                        {productCats.length > 0 && (
+                          <div className="pp-card-cats">
+                            {productCats.map(cat => (
+                              <span key={cat} className="pp-card-cat">{getCatLabel(cat)}</span>
+                            ))}
+                          </div>
+                        )}
+                        <h2 className="pp-card-name">{product.name}</h2>
+                        {product.colors?.length > 0 && (
+                          <div className="pp-card-colors" aria-label={`Available colours: ${product.colors.join(', ')}`}>
+                            {product.colors.slice(0, 6).map(c => (
+                              <div key={c} className="pp-color-dot" style={{ background: COLOR_MAP[c] || '#ccc' }} title={c} aria-label={c} />
+                            ))}
+                            {product.colors.length > 6 && (
+                              <span style={{ fontSize: '.6rem', color: 'var(--muted)' }}>+{product.colors.length - 6}</span>
+                            )}
+                          </div>
+                        )}
+                        <div className="pp-card-footer">
+                          <span className="pp-card-price">₹{parseFloat(product.base_price).toLocaleString('en-IN')}</span>
+                          <span className={`pp-badge ${product.in_stock ? 'pp-badge-in' : 'pp-badge-out'}`}>
+                            {product.in_stock ? 'In Stock' : 'Sold Out'}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.article>
+                  );
+                })}
+              </AnimatePresence>
+            )}
+
+            {!loading && (
+              <div className="pp-seo-block">
+                <h2>
+                  {category
+                    ? `Buy Handmade ${activeCatLabel} Online in India`
+                    : 'Buy Handmade Crochet & Woollen Products Online in India'}
+                </h2>
+                <p>
+                  Besties Craft offers 100% handmade crochet and woollen products crafted with
+                  love in Varanasi, Uttar Pradesh. We deliver across India — Mumbai, Delhi,
+                  Bangalore, Chennai, Hyderabad, Kolkata, Pune, Ahmedabad, Jaipur, Lucknow,
+                  Surat, Indore, Chandigarh, Kochi, Nagpur, Noida and Gurgaon. Every item is
+                  handcrafted and fully customisable — choose your colour, add a name or a
+                  personal message. Perfect handmade gifts for birthdays, Valentine's Day,
+                  friendships, weddings, anniversaries and festivals. Secure payment via
+                  Razorpay (UPI, Cards, Net Banking). Custom crochet orders welcome — WhatsApp
+                  us at +91 88107 76486.
+                </p>
+              </div>
+            )}
+          </div>
+        </main>
+
+        <Footer />
       </div>
     </>
   );
-};
-
-const st = {
-  backBtn:        {display:'inline-flex',alignItems:'center',gap:'.4rem',background:'none',border:'none',cursor:'pointer',color:'#666',fontSize:'.9rem',fontFamily:'sans-serif',marginBottom:'1.25rem',padding:0},
-  mainImgWrap:    {borderRadius:'16px',overflow:'hidden',background:'#fff',border:'1px solid #e8e4df',aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center'},
-  mainImg:        {width:'100%',height:'100%',objectFit:'cover',display:'block'},
-  thumbRow:       {display:'flex',gap:'.5rem',flexWrap:'wrap'},
-  thumbBtn:       {width:68,height:68,borderRadius:'10px',overflow:'hidden',border:'2px solid #e8e4df',padding:0,cursor:'pointer',background:'#fff',flexShrink:0,transition:'border-color .15s'},
-  thumbBtnActive: {borderColor:'#1a1a1a',boxShadow:'0 0 0 1px #1a1a1a'},
-  thumbImg:       {width:'100%',height:'100%',objectFit:'cover',display:'block'},
-  infoCol:        {display:'flex',flexDirection:'column',gap:0,paddingTop:'.5rem'},
-  categoryTag:    {fontSize:'.72rem',fontWeight:700,letterSpacing:'.1em',color:'#c2410c',fontFamily:'sans-serif',marginBottom:'.5rem',display:'block'},
-  productName:    {fontFamily:'Georgia,serif',fontSize:'2.2rem',fontWeight:700,color:'#1a1a1a',margin:'0 0 1rem',lineHeight:1.2},
-  priceRow:       {display:'flex',alignItems:'center',gap:'1rem',marginBottom:'1.25rem'},
-  price:          {fontFamily:'Georgia,serif',fontSize:'2rem',fontWeight:700,color:'#1a1a1a'},
-  inStockBadge:   {display:'inline-flex',alignItems:'center',gap:'.3rem',background:'#d1fae5',color:'#065f46',fontSize:'.78rem',fontWeight:600,padding:'.3rem .75rem',borderRadius:'20px',fontFamily:'sans-serif'},
-  outStockBadge:  {background:'#fee2e2',color:'#991b1b',fontSize:'.78rem',fontWeight:600,padding:'.3rem .75rem',borderRadius:'20px',fontFamily:'sans-serif'},
-  description:    {fontFamily:'sans-serif',fontSize:'.95rem',color:'#555',lineHeight:1.7,margin:'0 0 1.5rem'},
-  section:        {marginBottom:'1.5rem'},
-  sectionLabel:   {fontFamily:'sans-serif',fontSize:'.85rem',fontWeight:600,color:'#444',marginBottom:'.6rem'},
-  selectedColorName:{fontWeight:400,color:'#888'},
-  swatchRow:      {display:'flex',gap:'.6rem',flexWrap:'wrap'},
-  swatch:         {width:36,height:36,borderRadius:'50%',border:'2.5px solid transparent',cursor:'pointer',position:'relative',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 0 1.5px rgba(0,0,0,.12)',transition:'transform .15s,box-shadow .15s',outline:'none'},
-  swatchSelected: {boxShadow:'0 0 0 2px #fff, 0 0 0 4px #1a1a1a',transform:'scale(1.1)'},
-  swatchCheck:    {color:'#fff',fontSize:'.8rem',fontWeight:700,textShadow:'0 1px 3px rgba(0,0,0,.5)',lineHeight:1},
-  qtyRow:         {display:'flex',alignItems:'center',gap:'1rem'},
-  qtyBtn:         {width:42,height:42,borderRadius:'50%',border:'1.5px solid #e8e4df',background:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#444',transition:'background .15s'},
-  qtyNum:         {fontFamily:'Georgia,serif',fontSize:'1.4rem',fontWeight:600,color:'#1a1a1a',minWidth:32,textAlign:'center'},
-  cartBtn:        {display:'flex',alignItems:'center',justifyContent:'center',gap:'.6rem',width:'100%',padding:'1rem',background:'#1a1a1a',color:'#fff',border:'none',borderRadius:'12px',fontSize:'1rem',fontWeight:600,fontFamily:'sans-serif',cursor:'pointer',transition:'background .2s',marginTop:'.5rem'},
-  outOfStockBox:  {background:'#fff1f2',border:'1px solid #fecdd3',borderRadius:'12px',padding:'1rem 1.25rem',marginTop:'1rem'},
-  spinner:        {width:36,height:36,border:'3px solid #e8e4df',borderTop:'3px solid #1a1a1a',borderRadius:'50%',animation:'spin 0.8s linear infinite'},
-};
-
-export default ProductDetailPage;
+}
