@@ -35,46 +35,46 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="BestiesCraft" />
 
-    <!-- FIX 1: Preconnect to correct backend (was api.bestiescraft.in — wrong/dead domain) -->
+    <!-- FIX: Preconnect to correct backend (fixed from dead api.bestiescraft.in) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
     <link rel="preconnect" href="https://besties-craft-backend-1.onrender.com" crossorigin />
     <link rel="dns-prefetch" href="https://besties-craft-backend-1.onrender.com" />
 
-    <!-- FIX 2: Preload Playfair Display (used in hero h1) so LCP font doesn't block paint -->
+    <!-- FIX: Preload Playfair Display used in hero H1 so LCP font doesn't block -->
     <link rel="preload" as="style"
       href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&display=swap" />
 
     <!--
-      NON-RENDER-BLOCKING font load:
-      Uses media="print" trick — browser loads without blocking render,
-      then onload swaps to media="all". Saves ~750ms on mobile.
+      FIX: NON-RENDER-BLOCKING font load for ALL fonts including Manrope
+      (was previously loaded via @fontsource in index.css — blocking ~490ms).
+      media="print" trick: browser loads without blocking render,
+      onload swaps to media="all". Saves ~490ms on mobile.
     -->
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,700&family=Manrope:wght@300;400;500;600&display=swap"
       media="print"
       onload="this.media='all'"
     />
     <noscript>
       <link
         rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,700&family=Manrope:wght@300;400;500;600&display=swap"
       />
     </noscript>
 
-    <!-- FIX 3: Critical inline CSS — renders correctly before fonts/JS arrive -->
+    <!-- FIX: Critical inline CSS — page renders correctly before any fonts/JS arrive -->
     <style>
       *, *::before, *::after { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; background: #faf7f2; }
       #root { min-height: 100vh; }
-      /* Prevent CLS while fonts load — use system serif fallback that matches Playfair */
-      body { font-family: 'Lato', Georgia, sans-serif; }
+      /* System font fallbacks while Google Fonts loads — prevents invisible text (FOIT) */
+      body { font-family: 'Lato', 'Manrope', Georgia, sans-serif; }
       h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; }
-      /* FIX 4: Reserve hero height on mobile so no CLS on load */
+      /* Reserve hero space to prevent CLS on mobile */
       .hp-hero { min-height: 320px; }
-      /* Spinner shown by PageLoader while JS chunk loads */
       @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 

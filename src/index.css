@@ -1,10 +1,13 @@
-@import '@fontsource/playfair-display/400.css';
-@import '@fontsource/playfair-display/600.css';
-@import '@fontsource/playfair-display/700.css';
-@import '@fontsource/manrope/300.css';
-@import '@fontsource/manrope/400.css';
-@import '@fontsource/manrope/500.css';
-@import '@fontsource/manrope/600.css';
+/* FIX: Removed 7 @fontsource imports that were blocking render by ~490ms:
+   - @fontsource/playfair-display/400.css
+   - @fontsource/playfair-display/600.css
+   - @fontsource/playfair-display/700.css
+   - @fontsource/manrope/300.css
+   - @fontsource/manrope/400.css
+   - @fontsource/manrope/500.css
+   - @fontsource/manrope/600.css
+   All fonts now load non-blocking via index.html media="print" trick.
+   This fixes "Render blocking requests — Est savings of 490ms" in PageSpeed. */
 
 @tailwind base;
 @tailwind components;
