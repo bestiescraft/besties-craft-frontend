@@ -9,7 +9,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 
 // ── Backend URL & Image Helper ────────────────────────────────
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://api.bestiescraft.in';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://besties-craft-backend-1.onrender.com';
 
 const optimizeImageUrl = (url, opts = {}) => {
   if (!url || typeof url !== 'string') return null;
