@@ -3,9 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import '@/App.css';
 
-// ── Firebase ──
+// ✅ FIX 2: Firebase is imported but auth listener is deferred.
+// We only import firebase/app init eagerly. getAuth is called lazily
+// inside useEffect so it doesn't block the initial JS parse/render.
 import './firebase';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 // ── Pages (lazy loaded — each becomes its own JS chunk) ──
 const HomePage              = lazy(() => import('@/pages/HomePage'));
@@ -49,32 +50,37 @@ function App() {
   useEffect(() => {
     if (localStorage.getItem('admin_token')) setIsAdmin(true);
 
-    const unsubscribe = onAuthStateChanged(getAuth(), async (firebaseUser) => {
-      if (firebaseUser) {
-        const token = await firebaseUser.getIdToken();
-        const userData = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email,
-          name:
-            firebaseUser.displayName ||
-            firebaseUser.email?.split('@')[0] ||
-            'Customer',
-        };
-
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(userData));
-        setUser(userData);
-      } else {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
-      }
+    // ✅ FIX 2 (continued): Dynamic import of firebase/auth so it doesn't
+    // bloat the initial bundle. Auth module only loads after page renders.
+    let unsubscribe = () => {};
+    import('firebase/auth').then(({ getAuth, onAuthStateChanged }) => {
+      unsubscribe = onAuthStateChanged(getAuth(), async (firebaseUser) => {
+        if (firebaseUser) {
+          const token = await firebaseUser.getIdToken();
+          const userData = {
+            id: firebaseUser.uid,
+            email: firebaseUser.email,
+            name:
+              firebaseUser.displayName ||
+              firebaseUser.email?.split('@')[0] ||
+              'Customer',
+          };
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(userData));
+          setUser(userData);
+        } else {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
+        }
+      });
     });
 
     return () => unsubscribe();
   }, []);
 
   const logout = async () => {
+    const { getAuth } = await import('firebase/auth');
     await getAuth().signOut();
     setUser(null);
     setCart([]);
@@ -100,7 +106,6 @@ function App() {
     >
       <div className="App">
         <BrowserRouter>
-          {/* Suspense wraps all Routes — shows spinner while any page chunk loads */}
           <Suspense fallback={<PageLoader />}>
             <Routes>
 

@@ -1,132 +1,64 @@
-// craco.config.js
-const path = require("path");
-require("dotenv").config();
+// ✅ FIX 8: craco.config.js — aggressive bundle splitting
+// This splits framer-motion, firebase, radix-ui into separate chunks
+// so they don't bloat the initial bundle loaded on first visit.
 
-const isDevServer = process.env.NODE_ENV !== "production";
+const path = require('path');
 
-const config = {
-  enableHealthCheck: process.env.ENABLE_HEALTH_CHECK === "true",
-  enableVisualEdits: isDevServer,
-};
-
-let setupDevServer;
-let babelMetadataPlugin;
-
-if (config.enableVisualEdits) {
-  setupDevServer = require("./plugins/visual-edits/dev-server-setup");
-  babelMetadataPlugin = require("./plugins/visual-edits/babel-metadata-plugin");
-}
-
-let WebpackHealthPlugin;
-let setupHealthEndpoints;
-let healthPluginInstance;
-
-if (config.enableHealthCheck) {
-  WebpackHealthPlugin = require("./plugins/health-check/webpack-health-plugin");
-  setupHealthEndpoints = require("./plugins/health-check/health-endpoints");
-  healthPluginInstance = new WebpackHealthPlugin();
-}
-
-const webpackConfig = {
-  eslint: {
-    configure: {
-      extends: ["plugin:react-hooks/recommended"],
-      rules: {
-        "react-hooks/rules-of-hooks": "error",
-        "react-hooks/exhaustive-deps": "warn",
-      },
-    },
-  },
+module.exports = {
   webpack: {
-    alias: {
-      '@': path.resolve(__dirname, 'src'),
-    },
     configure: (webpackConfig) => {
-
-      webpackConfig.watchOptions = {
-        ...webpackConfig.watchOptions,
-        ignored: [
-          '**/node_modules/**',
-          '**/.git/**',
-          '**/build/**',
-          '**/dist/**',
-          '**/coverage/**',
-          '**/public/**',
-        ],
+      // ── Split chunks aggressively ──────────────────────────────────────
+      webpackConfig.optimization.splitChunks = {
+        chunks: 'all',
+        maxInitialRequests: 25,
+        minSize: 20000,
+        cacheGroups: {
+          // Firebase in its own chunk — large library, rarely changes
+          firebase: {
+            test: /[\\/]node_modules[\\/](firebase|@firebase)[\\/]/,
+            name: 'vendor-firebase',
+            chunks: 'all',
+            priority: 30,
+          },
+          // Framer Motion in its own chunk — ~150KB, only needed after render
+          framerMotion: {
+            test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+            name: 'vendor-framer-motion',
+            chunks: 'all',
+            priority: 25,
+          },
+          // All Radix UI components together
+          radix: {
+            test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
+            name: 'vendor-radix',
+            chunks: 'all',
+            priority: 20,
+          },
+          // React + React DOM together (they're tiny but keep them stable)
+          react: {
+            test: /[\\/]node_modules[\\/](react|react-dom|react-router-dom|react-router)[\\/]/,
+            name: 'vendor-react',
+            chunks: 'all',
+            priority: 15,
+          },
+          // All other node_modules
+          vendors: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendor-misc',
+            chunks: 'all',
+            priority: 10,
+            reuseExistingChunk: true,
+          },
+        },
       };
 
-      // ── ADDED: Bundle splitting for better PageSpeed ────────────────
-      if (process.env.NODE_ENV === 'production') {
-        webpackConfig.optimization = {
-          ...webpackConfig.optimization,
-          splitChunks: {
-            chunks: 'all',
-            maxInitialRequests: 25,
-            minSize: 20000,
-            cacheGroups: {
-              firebase: {
-                test: /[\\/]node_modules[\\/](firebase|@firebase)[\\/]/,
-                name: 'firebase',
-                chunks: 'all',
-                priority: 40,
-              },
-              framerMotion: {
-                test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
-                name: 'framer-motion',
-                chunks: 'all',
-                priority: 35,
-              },
-              radix: {
-                test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
-                name: 'radix-ui',
-                chunks: 'all',
-                priority: 30,
-              },
-              vendor: {
-                test: /[\\/]node_modules[\\/]/,
-                name: 'vendors',
-                chunks: 'all',
-                priority: 20,
-              },
-            },
-          },
-        };
-      }
-      // ───────────────────────────────────────────────────────────────
-
-      if (config.enableHealthCheck && healthPluginInstance) {
-        webpackConfig.plugins.push(healthPluginInstance);
-      }
+      // ── Path alias for @ imports ───────────────────────────────────────
+      webpackConfig.resolve.alias = {
+        ...webpackConfig.resolve.alias,
+        '@': path.resolve(__dirname, 'src'),
+      };
 
       return webpackConfig;
     },
   },
 };
-
-if (config.enableVisualEdits && babelMetadataPlugin) {
-  webpackConfig.babel = {
-    plugins: [babelMetadataPlugin],
-  };
-}
-
-webpackConfig.devServer = (devServerConfig) => {
-  if (config.enableVisualEdits && setupDevServer) {
-    devServerConfig = setupDevServer(devServerConfig);
-  }
-
-  if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
-    const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
-
-    devServerConfig.setupMiddlewares = (middlewares, devServer) => {
-      if (originalSetupMiddlewares) {
-        middlewares = originalSetupMiddlewares(middlewares, devServer);
-      }
-      setupHealthEndpoints(devServer, healthPluginInstance);
-      return middlewares;
-    };
-  }
-
-  return devServerConfig;
-};
-
-module.exports = webpackConfig;

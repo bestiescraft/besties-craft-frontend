@@ -1,13 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "@fontsource/playfair-display/400.css";
-import "@fontsource/playfair-display/600.css";
-import "@fontsource/playfair-display/700.css";
-import "@fontsource/cormorant-garamond/500.css";  // ← was 600, doesn't exist
-import "@fontsource/cormorant-garamond/700.css";
-import "@fontsource/lato/300.css";
-import "@fontsource/lato/400.css";
-import "@fontsource/lato/700.css";
+// ✅ FIX 1: Removed all @fontsource imports — they were loading 8 font files
+// blocking the first render. Fonts are now handled in index.html via
+// media="print" trick (already there) which is non-blocking.
 import "@/index.css";
 import App from "@/App";
 
