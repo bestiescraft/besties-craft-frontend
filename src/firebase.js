@@ -1,8 +1,5 @@
 import { initializeApp } from "firebase/app";
-
-// ✅ Do NOT call getAuth() here — it loads firebase/auth eagerly and
-// blocks the initial JS parse. Auth is initialized lazily in App.js
-// via dynamic import('firebase/auth') inside useEffect.
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey:            "AIzaSyAUnxAahD2g7tsXqcKW8B3jgzs_eNEdSa0",
@@ -15,7 +12,5 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
 export default app;
-
-// ✅ auth is exported lazily — only used in App.js via dynamic import
-// If any other file needs auth, use: const { getAuth } = await import('firebase/auth')
