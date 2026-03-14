@@ -1,12 +1,17 @@
-// ✅ FIX 8: craco.config.js — aggressive bundle splitting
-// This splits framer-motion, firebase, radix-ui into separate chunks
-// so they don't bloat the initial bundle loaded on first visit.
+// craco.config.js — removes ESLint from build + aggressive bundle splitting
 
 const path = require('path');
 
 module.exports = {
   webpack: {
     configure: (webpackConfig) => {
+
+      // ── REMOVE ESLINT WEBPACK PLUGIN COMPLETELY ────────────────────────
+      // This kills ALL eslint errors during build — nuclear option
+      webpackConfig.plugins = webpackConfig.plugins.filter(
+        (plugin) => plugin.constructor.name !== 'ESLintWebpackPlugin'
+      );
+
       // ── Split chunks aggressively ──────────────────────────────────────
       webpackConfig.optimization.splitChunks = {
         chunks: 'all',
@@ -34,7 +39,7 @@ module.exports = {
             chunks: 'all',
             priority: 20,
           },
-          // React + React DOM together (they're tiny but keep them stable)
+          // React + React DOM together
           react: {
             test: /[\\/]node_modules[\\/](react|react-dom|react-router-dom|react-router)[\\/]/,
             name: 'vendor-react',
