@@ -372,7 +372,6 @@ const ProductDetailPage = () => {
       }
       if (product.category) fetchRelated(product.category, product._id);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product]);
 
   const handleColorSelect = (colorName) => {

@@ -126,7 +126,6 @@ function AdminProductsPage() {
       toast.error(error.response?.data?.detail || 'Failed to fetch products');
       setProducts([]);
     } finally { setLoading(false); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Add custom category ──
