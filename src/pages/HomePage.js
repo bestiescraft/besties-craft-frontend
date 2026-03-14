@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Sparkles, Heart, Package, Star, Shield, Truck, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
@@ -7,42 +7,10 @@ import usePageMeta from '@/hooks/usePageMeta';
 import { optimizeImageUrl } from '@/lib/constants';
 import axios from 'axios';
 
-const MotionDiv = React.lazy(() =>
-  import('framer-motion').then(m => ({ default: m.motion.div }))
-);
-const MotionA = React.lazy(() =>
-  import('framer-motion').then(m => ({ default: m.motion.a }))
-);
-const MotionArticle = React.lazy(() =>
-  import('framer-motion').then(m => ({ default: m.motion.article }))
-);
+// FIX: Removed framer-motion lazy wrappers from HomePage — they were adding
+// a Suspense waterfall that delayed first paint. Simple divs render instantly.
 
-const FallbackDiv = ({ children, style, className, ...rest }) => (
-  <div style={style} className={className}>{children}</div>
-);
-const FallbackA = ({ children, style, className, href, onClick, ...rest }) => (
-  <a style={style} className={className} href={href} onClick={onClick}>{children}</a>
-);
-const FallbackArticle = ({ children, style, className, onClick, ...rest }) => (
-  <article style={style} className={className} onClick={onClick}>{children}</article>
-);
-
-const SafeMotionDiv = (props) => (
-  <React.Suspense fallback={<FallbackDiv {...props} />}>
-    <MotionDiv {...props} />
-  </React.Suspense>
-);
-const SafeMotionA = (props) => (
-  <React.Suspense fallback={<FallbackA {...props} />}>
-    <MotionA {...props} />
-  </React.Suspense>
-);
-const SafeMotionArticle = (props) => (
-  <React.Suspense fallback={<FallbackArticle {...props} />}>
-    <MotionArticle {...props} />
-  </React.Suspense>
-);
-
+// FIX: Correct backend URL with trailing slash protection
 const BACKEND_URL =
   process.env.REACT_APP_BACKEND_URL?.replace(/\/$/, '') ||
   'https://besties-craft-backend-1.onrender.com';
@@ -161,11 +129,11 @@ const LogoHero = () => (
   </div>
 );
 
-function FAQItem({ faq, index }) {
+function FAQItem({ faq }) {
   const [open, setOpen] = useState(false);
   return (
     <div
-      style={{ borderBottom: '1px solid #e8dfd0', overflow: 'hidden', opacity: 1, transform: 'translateY(0)', transition: 'opacity 0.3s ease' }}
+      style={{ borderBottom: '1px solid #e8dfd0', overflow: 'hidden' }}
       itemScope
       itemType="https://schema.org/Question"
     >
@@ -202,7 +170,11 @@ export default function HomePage() {
 
   const fetchFeatured = async () => {
     try {
-      const res = await axios.get(`${BACKEND_URL}/api/products?sort=newest`);
+      // FIX: Added 5s timeout — Render free tier cold-starts take up to 30s.
+      // Without this, the page hangs waiting for the API before rendering anything.
+      const res = await axios.get(`${BACKEND_URL}/api/products?sort=newest`, {
+        timeout: 5000,
+      });
       setFeatured((res.data.products || []).slice(0, 4));
     } catch {
       setFeatured([]);
@@ -217,7 +189,6 @@ export default function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(sitelinksSchema) }} />
 
       <style>{`
-        /* ── GLOBAL RESET — kills browser default gap ── */
         *, *::before, *::after { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
 
@@ -226,39 +197,24 @@ export default function HomePage() {
           --terracotta: #c2602a; --brown: #5c3d2e;
           --dark: #2c1810; --text: #4a3728; --muted: #6b5245;
         }
-        .hp-page { background: var(--cream); font-family: 'Lato', sans-serif; }
+        .hp-page { background: var(--cream); font-family: 'Lato', Georgia, sans-serif; }
 
-        /* ── HERO — no top gap, flush against navbar ── */
         .hp-hero {
-          min-height: auto;
-          display: flex;
-          align-items: center;
-          background: var(--warm);
-          position: relative;
-          overflow: hidden;
-          /* FIX: was 3rem 2rem 3rem — caused the ugly gap */
-          padding: 4.5rem 2rem 4.5rem;
-          margin-top: 0;
+          display: flex; align-items: center;
+          background: var(--warm); position: relative; overflow: hidden;
+          padding: 4.5rem 2rem; margin-top: 0;
         }
         .hp-hero::before {
-          content: '';
-          position: absolute;
-          inset: 0;
+          content: ''; position: absolute; inset: 0;
           background:
             radial-gradient(ellipse 60% 50% at 80% 50%, rgba(194,96,42,0.08) 0%, transparent 70%),
             radial-gradient(ellipse 40% 60% at 10% 80%, rgba(92,61,46,0.06) 0%, transparent 60%);
           pointer-events: none;
         }
         .hp-hero-inner {
-          max-width: 1180px;
-          margin: 0 auto;
-          width: 100%;
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 4rem;
-          align-items: center;
-          position: relative;
-          z-index: 1;
+          max-width: 1180px; margin: 0 auto; width: 100%;
+          display: grid; grid-template-columns: 1fr 1fr;
+          gap: 4rem; align-items: center; position: relative; z-index: 1;
         }
 
         .hp-hero-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
@@ -275,8 +231,7 @@ export default function HomePage() {
         .hp-hero-title {
           font-family: 'Playfair Display', Georgia, serif;
           font-size: clamp(2.5rem, 5vw, 4rem);
-          font-weight: 700; color: var(--dark);
-          line-height: 1.15; margin: 0 0 1.5rem;
+          font-weight: 700; color: var(--dark); line-height: 1.15; margin: 0 0 1.5rem;
         }
         .hp-hero-title em { font-style: italic; color: var(--terracotta); }
         .hp-hero-sub {
@@ -303,19 +258,22 @@ export default function HomePage() {
         }
         .hp-btn-outline:hover { border-color: var(--dark); background: var(--warm); }
 
+        /* FIX: Hero image grid — explicit aspect-ratio on BOTH wrappers prevents CLS */
         .hp-hero-imgs {
           display: grid; grid-template-columns: 1fr 1fr;
           grid-template-rows: 1fr 1fr; gap: 0.75rem; height: 480px;
         }
         .hp-hero-img-main {
           grid-row: 1 / 3; border-radius: 20px; overflow: hidden;
-          box-shadow: 0 20px 50px rgba(44,24,16,0.18);
-          background: var(--sand); min-height: 480px;
+          box-shadow: 0 20px 50px rgba(44,24,16,0.18); background: var(--sand);
+          /* FIX: explicit aspect-ratio prevents CLS jump when image loads */
+          aspect-ratio: 5 / 6; width: 100%; position: relative;
         }
         .hp-hero-img-sm {
           border-radius: 14px; overflow: hidden;
-          box-shadow: 0 8px 24px rgba(44,24,16,0.12);
-          background: var(--sand); min-height: 230px;
+          box-shadow: 0 8px 24px rgba(44,24,16,0.12); background: var(--sand);
+          /* FIX: explicit aspect-ratio prevents CLS jump */
+          aspect-ratio: 1 / 1; width: 100%; position: relative;
         }
         .hp-hero-img-main img, .hp-hero-img-sm img {
           width: 100%; height: 100%; object-fit: cover; display: block;
@@ -326,7 +284,6 @@ export default function HomePage() {
           display: flex; align-items: center; justify-content: center; font-size: 3rem;
         }
 
-        /* ── STATS ── */
         .hp-stats { background: var(--dark); color: #fff; padding: 1.5rem 2rem; }
         .hp-stats-inner {
           max-width: 1180px; margin: 0 auto;
@@ -336,13 +293,11 @@ export default function HomePage() {
         .hp-stat-num   { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; color: #e8a87c; display: block; }
         .hp-stat-label { font-size: 0.78rem; color: rgba(255,255,255,0.75); letter-spacing: 0.06em; }
 
-        /* ── SECTION HEADERS ── */
         .hp-sec-head  { text-align: center; margin-bottom: 3rem; }
         .hp-sec-tag   { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #9e4a1a; display: block; margin-bottom: 0.75rem; }
         .hp-sec-title { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(1.8rem, 3vw, 2.6rem); font-weight: 700; color: var(--dark); margin: 0 0 0.75rem; }
         .hp-sec-sub   { font-size: 0.95rem; color: #6b5245; max-width: 500px; margin: 0 auto; line-height: 1.7; }
 
-        /* ── CATEGORIES ── */
         .hp-cats { padding: 5rem 2rem; background: var(--cream); }
         .hp-cats-grid {
           max-width: 1180px; margin: 0 auto;
@@ -359,7 +314,6 @@ export default function HomePage() {
         .hp-cat-name  { font-size: 0.82rem; font-weight: 700; color: #4a2810; display: block; margin-bottom: 0.25rem; }
         .hp-cat-desc  { font-size: 0.68rem; color: #6b5245; display: block; line-height: 1.4; }
 
-        /* ── FEATURED PRODUCTS ── */
         .hp-featured { padding: 5rem 2rem; background: var(--warm); }
         .hp-products-grid {
           max-width: 1180px; margin: 0 auto;
@@ -372,8 +326,13 @@ export default function HomePage() {
           font-family: 'Lato', sans-serif;
         }
         .hp-prod-card:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(44,24,16,0.14); }
-        .hp-prod-img { height: 220px; overflow: hidden; position: relative; background: var(--warm); }
-        .hp-prod-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+        /* FIX: Fixed height + explicit dimensions on product images to prevent CLS */
+        .hp-prod-img {
+          height: 220px; overflow: hidden; position: relative; background: var(--warm);
+          /* FIX: reserve space before image loads */
+          min-height: 220px;
+        }
+        .hp-prod-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; display: block; }
         .hp-prod-card:hover .hp-prod-img img { transform: scale(1.07); }
         .hp-prod-img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 3rem; background: var(--warm); }
         .hp-prod-body  { padding: 1.1rem 1.2rem 1.3rem; }
@@ -383,7 +342,6 @@ export default function HomePage() {
         .hp-prod-stock { font-size: 0.72rem; color: #256025; font-weight: 600; margin-left: 0.6rem; }
         .hp-view-all   { text-align: center; margin-top: 3rem; }
 
-        /* ── WHY US ── */
         .hp-why { padding: 5rem 2rem; background: var(--cream); }
         .hp-why-grid {
           max-width: 1180px; margin: 0 auto;
@@ -394,7 +352,6 @@ export default function HomePage() {
         .hp-why-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 600; color: var(--dark); margin: 0 0 0.5rem; }
         .hp-why-desc  { font-size: 0.85rem; color: #6b5245; line-height: 1.65; margin: 0; }
 
-        /* ── TRUST BAR ── */
         .hp-trust { padding: 2rem 2rem; background: var(--dark); }
         .hp-trust-inner {
           max-width: 1180px; margin: 0 auto;
@@ -403,7 +360,6 @@ export default function HomePage() {
         .hp-trust-item { display: flex; align-items: center; gap: 0.6rem; color: rgba(255,255,255,0.85); font-family: 'Lato', sans-serif; font-size: 0.82rem; font-weight: 600; letter-spacing: 0.04em; }
         .hp-trust-icon { color: #e8a87c; }
 
-        /* ── GIFTING ── */
         .hp-gifting {
           padding: 5rem 2rem;
           background: linear-gradient(135deg, #2c1810 0%, #5c3d2e 100%);
@@ -424,11 +380,9 @@ export default function HomePage() {
         .hp-occasion-emoji { font-size: 1.5rem; display: block; margin-bottom: 0.3rem; }
         .hp-occasion-label { font-size: 0.68rem; color: rgba(255,255,255,0.85); font-family: 'Lato', sans-serif; font-weight: 600; display: block; }
 
-        /* ── FAQ ── */
         .hp-faq { padding: 5rem 2rem; background: var(--warm); }
         .hp-faq-inner { max-width: 780px; margin: 0 auto; }
 
-        /* ── CTA ── */
         .hp-cta { padding: 5rem 2rem; background: var(--dark); text-align: center; position: relative; overflow: hidden; }
         .hp-cta::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 70% 80% at 50% 50%, rgba(194,96,42,0.15) 0%, transparent 70%); pointer-events: none; }
         .hp-cta-title { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(1.8rem, 3vw, 2.8rem); font-weight: 700; color: #fff; margin: 0 0 1rem; position: relative; z-index: 1; }
@@ -437,7 +391,6 @@ export default function HomePage() {
         .hp-cta-btn { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--terracotta); color: #fff; padding: 1rem 2.5rem; border-radius: 50px; font-size: 1rem; font-weight: 700; border: none; cursor: pointer; transition: background 0.2s, transform 0.15s; font-family: 'Lato', sans-serif; position: relative; z-index: 1; }
         .hp-cta-btn:hover { background: #a8512a; transform: translateY(-2px); }
 
-        /* ── WHATSAPP ── */
         .hp-whatsapp { padding: 3rem 2rem; background: var(--cream); text-align: center; }
         .hp-wa-inner { max-width: 600px; margin: 0 auto; background: var(--warm); border-radius: 20px; padding: 2.5rem; border: 1px solid var(--sand); }
         .hp-wa-title { font-family: 'Playfair Display', Georgia, serif; font-size: 1.6rem; font-weight: 700; color: var(--dark); margin: 0 0 0.75rem; }
@@ -445,14 +398,12 @@ export default function HomePage() {
         .hp-wa-btn { display: inline-flex; align-items: center; gap: 0.6rem; background: #25d366; color: #fff; padding: 0.9rem 2rem; border-radius: 50px; font-size: 0.95rem; font-weight: 700; border: none; cursor: pointer; font-family: 'Lato', sans-serif; text-decoration: none; transition: background 0.2s, transform 0.15s; }
         .hp-wa-btn:hover { background: #1ebe5d; transform: translateY(-2px); }
 
-        /* ── SEO CITIES ── */
         .hp-seo-cities { padding: 2.5rem 2rem; background: var(--cream); border-top: 1px solid var(--sand); }
         .hp-seo-cities-inner { max-width: 1180px; margin: 0 auto; }
         .hp-seo-cities h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 1.1rem; font-weight: 700; color: var(--dark); margin: 0 0 0.75rem; }
         .hp-seo-cities p { font-size: 0.82rem; color: #6b5245; line-height: 1.85; margin: 0; }
         .hp-seo-cities a { color: #9e4a1a; text-decoration: underline; }
 
-        /* ── RESPONSIVE ── */
         @media (max-width: 1024px) {
           .hp-cats-grid     { grid-template-columns: repeat(3, 1fr); }
           .hp-products-grid { grid-template-columns: repeat(2, 1fr); }
@@ -460,14 +411,14 @@ export default function HomePage() {
           .hp-gifting-inner { grid-template-columns: 1fr; gap: 2rem; }
         }
         @media (max-width: 768px) {
-          .hp-hero         { padding: 3rem 1.5rem 3rem; min-height: auto; }
+          .hp-hero         { padding: 3rem 1.5rem; min-height: auto; }
           .hp-hero-inner   { grid-template-columns: 1fr; gap: 2rem; }
           .hp-hero-imgs    { display: none; }
           .hp-cats-grid    { grid-template-columns: repeat(3, 1fr); }
           .hp-occasions-grid { grid-template-columns: repeat(4, 1fr); }
         }
         @media (max-width: 480px) {
-          .hp-hero          { padding: 2.5rem 1rem 2.5rem; }
+          .hp-hero          { padding: 2.5rem 1rem; }
           .hp-cats-grid     { grid-template-columns: repeat(2, 1fr); }
           .hp-products-grid { grid-template-columns: 1fr; }
           .hp-why-grid      { grid-template-columns: 1fr; }
@@ -480,7 +431,7 @@ export default function HomePage() {
 
         <main id="main-content">
 
-          {/* ── HERO ── */}
+          {/* HERO */}
           <section className="hp-hero" aria-label="Hero section">
             <div className="hp-hero-inner">
               <div>
@@ -511,6 +462,8 @@ export default function HomePage() {
                 </div>
               </div>
 
+              {/* FIX: Hero images — fetchpriority="high" on first image for LCP,
+                  explicit width/height on all images to prevent CLS */}
               <div className="hp-hero-imgs" aria-hidden="true">
                 <div className="hp-hero-img-main">
                   {featured[0]?.images?.[0]?.url
@@ -519,6 +472,7 @@ export default function HomePage() {
                         alt={`Handmade crochet ${featured[0].name} — Besties Craft India`}
                         fetchpriority="high"
                         loading="eager"
+                        decoding="async"
                         width="400"
                         height="480"
                         onError={e => { e.target.parentNode.innerHTML = '<div class="hp-hero-img-placeholder">🌸</div>'; }}
@@ -531,8 +485,9 @@ export default function HomePage() {
                         src={optimizeImageUrl(featured[1].images[0].url, { width: 400 })}
                         alt={`Handmade crochet ${featured[1].name} — Besties Craft India`}
                         loading="lazy"
+                        decoding="async"
                         width="200"
-                        height="240"
+                        height="230"
                         onError={e => { e.target.parentNode.innerHTML = '<div class="hp-hero-img-placeholder">📿</div>'; }}
                       />
                     : <div className="hp-hero-img-placeholder" aria-hidden="true">📿</div>}
@@ -543,8 +498,9 @@ export default function HomePage() {
                         src={optimizeImageUrl(featured[2].images[0].url, { width: 400 })}
                         alt={`Handmade crochet ${featured[2].name} — Besties Craft India`}
                         loading="lazy"
+                        decoding="async"
                         width="200"
-                        height="240"
+                        height="230"
                         onError={e => { e.target.parentNode.innerHTML = '<div class="hp-hero-img-placeholder">🎀</div>'; }}
                       />
                     : <div className="hp-hero-img-placeholder" aria-hidden="true">🎀</div>}
@@ -553,7 +509,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* ── TRUST BADGES ── */}
+          {/* TRUST BADGES */}
           <div className="hp-trust" aria-label="Trust signals">
             <div className="hp-trust-inner">
               {[
@@ -571,7 +527,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* ── STATS ── */}
+          {/* STATS */}
           <div className="hp-stats" aria-label="Our numbers">
             <div className="hp-stats-inner">
               {[
@@ -588,7 +544,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* ── CATEGORIES ── */}
+          {/* CATEGORIES */}
           <section className="hp-cats" aria-labelledby="cats-heading">
             <div style={{ maxWidth: 1180, margin: '0 auto' }}>
               <div className="hp-sec-head">
@@ -614,7 +570,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* ── FEATURED PRODUCTS ── */}
+          {/* FEATURED PRODUCTS */}
           <section className="hp-featured" aria-labelledby="featured-heading">
             <div style={{ maxWidth: 1180, margin: '0 auto' }}>
               <div className="hp-sec-head">
@@ -641,6 +597,7 @@ export default function HomePage() {
                                 src={optimizeImageUrl(product.images[0].url, { width: 400 })}
                                 alt={`Handmade ${product.name} — ${displayCat || 'crochet product'} by Besties Craft India`}
                                 loading="lazy"
+                                decoding="async"
                                 width="400"
                                 height="220"
                                 onError={e => { e.target.src = PLACEHOLDER; }}
@@ -668,7 +625,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* ── WHY US ── */}
+          {/* WHY US */}
           <section className="hp-why" aria-labelledby="why-heading">
             <div style={{ maxWidth: 1180, margin: '0 auto' }}>
               <div className="hp-sec-head">
@@ -687,7 +644,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* ── GIFTING OCCASIONS ── */}
+          {/* GIFTING OCCASIONS */}
           <section className="hp-gifting" aria-labelledby="gifting-heading">
             <div className="hp-gifting-inner">
               <div>
@@ -722,7 +679,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* ── WHATSAPP ── */}
+          {/* WHATSAPP */}
           <section className="hp-whatsapp" aria-labelledby="whatsapp-heading">
             <div className="hp-wa-inner">
               <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }} aria-hidden="true">💬</div>
@@ -744,7 +701,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* ── FAQ ── */}
+          {/* FAQ */}
           <section className="hp-faq" aria-labelledby="faq-heading" itemScope itemType="https://schema.org/FAQPage">
             <div className="hp-faq-inner">
               <div className="hp-sec-head">
@@ -752,11 +709,11 @@ export default function HomePage() {
                 <h2 id="faq-heading" className="hp-sec-title">Frequently Asked Questions</h2>
                 <p className="hp-sec-sub">Everything you need to know about ordering handmade crochet products from Besties Craft.</p>
               </div>
-              {FAQS.map((faq, i) => <FAQItem key={i} faq={faq} index={i} />)}
+              {FAQS.map((faq, i) => <FAQItem key={i} faq={faq} />)}
             </div>
           </section>
 
-          {/* ── CTA ── */}
+          {/* CTA */}
           <section className="hp-cta" aria-labelledby="cta-heading">
             <div>
               <h2 id="cta-heading" className="hp-cta-title">Every handmade piece tells a <em>story</em></h2>
@@ -770,7 +727,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* ── SEO CITY BLOCK ── */}
+          {/* SEO CITY BLOCK */}
           <div className="hp-seo-cities" aria-label="Delivery information">
             <div className="hp-seo-cities-inner">
               <h2>Handmade Crochet Products Delivered Across India</h2>

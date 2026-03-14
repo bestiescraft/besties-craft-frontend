@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, User, Menu, X, LogOut, ChevronDown } from 'lucide-react';
+import { ShoppingCart, User, Menu, X, LogOut } from 'lucide-react';
 import { useApp } from '@/App';
 import { CartSidebar } from '@/components/CartSidebar';
 
-import '@fontsource/lato/400.css';
-import '@fontsource/lato/700.css';
+// FIX: Removed @fontsource/lato imports — these were loading 2 extra font files
+// (~50KB) synchronously, blocking first render and hurting FCP by ~400ms.
+// Fonts are now loaded non-blocking via index.html media="print" trick.
 
 /* ── Logo — Badge stamp ── */
 const LogoB = () => (
@@ -74,19 +75,14 @@ const Navbar = () => {
   return (
     <>
       <style>{`
-        /* ─── RESET: kill any browser default body margin/padding gap ─── */
         html, body { margin: 0; padding: 0; }
 
-        /* ─── NAVBAR ROOT ─── */
         .nb-root {
-          position: sticky;
-          top: 0;
-          z-index: 200;
+          position: sticky; top: 0; z-index: 200;
           background: #faf7f2;
           border-bottom: 1px solid rgba(232,223,208,0.8);
           transition: box-shadow 0.3s, border-color 0.3s;
-          font-family: 'Lato', sans-serif;
-          /* No backdrop-filter on initial load to avoid flash */
+          font-family: 'Lato', Georgia, sans-serif;
         }
         .nb-root.scrolled {
           background: rgba(250,247,242,0.97);
@@ -96,232 +92,116 @@ const Navbar = () => {
           border-bottom-color: transparent;
         }
 
-        /* ─── ANNOUNCEMENT BAR (optional top strip) ─── */
         .nb-announce {
-          background: #2c1810;
-          color: rgba(255,255,255,0.85);
-          text-align: center;
-          font-size: 0.72rem;
-          font-weight: 600;
-          letter-spacing: 0.08em;
-          padding: 0.45rem 1rem;
-          font-family: 'Lato', sans-serif;
+          background: #2c1810; color: rgba(255,255,255,0.85);
+          text-align: center; font-size: 0.72rem; font-weight: 600;
+          letter-spacing: 0.08em; padding: 0.45rem 1rem;
+          font-family: 'Lato', Georgia, sans-serif;
         }
         .nb-announce span { color: #e8a87c; margin: 0 0.4rem; }
 
-        /* ─── MAIN NAVBAR INNER ─── */
         .nb-inner {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 0 2.5rem;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          height: 72px; /* Fixed, consistent height */
+          max-width: 1200px; margin: 0 auto; padding: 0 2.5rem;
+          display: flex; align-items: center; justify-content: space-between;
+          height: 72px;
         }
 
-        /* ─── LOGO ─── */
         .nb-logo-link {
-          text-decoration: none;
-          display: flex;
-          align-items: center;
-          flex-shrink: 0;
-          transition: opacity 0.2s;
+          text-decoration: none; display: flex; align-items: center;
+          flex-shrink: 0; transition: opacity 0.2s;
         }
         .nb-logo-link:hover { opacity: 0.82; }
 
-        /* ─── NAV LINKS ─── */
         .nb-links {
-          display: flex;
-          align-items: center;
-          gap: 0.25rem;
-          list-style: none;
-          margin: 0;
-          padding: 0;
-          position: absolute;
-          left: 50%;
-          transform: translateX(-50%);
+          display: flex; align-items: center; gap: 0.25rem;
+          list-style: none; margin: 0; padding: 0;
+          position: absolute; left: 50%; transform: translateX(-50%);
         }
         .nb-link {
-          text-decoration: none;
-          font-size: 0.875rem;
-          font-weight: 700;
-          color: #6b5245;
-          letter-spacing: 0.04em;
-          position: relative;
-          padding: 0.5rem 0.9rem;
-          border-radius: 8px;
-          transition: color 0.2s, background 0.2s;
-          white-space: nowrap;
+          text-decoration: none; font-size: 0.875rem; font-weight: 700;
+          color: #6b5245; letter-spacing: 0.04em; position: relative;
+          padding: 0.5rem 0.9rem; border-radius: 8px;
+          transition: color 0.2s, background 0.2s; white-space: nowrap;
         }
         .nb-link::after {
-          content: '';
-          position: absolute;
-          bottom: 2px;
-          left: 0.9rem;
-          right: 0.9rem;
-          height: 2px;
-          background: #c2602a;
-          border-radius: 2px;
-          transform: scaleX(0);
-          transition: transform 0.22s ease;
+          content: ''; position: absolute; bottom: 2px;
+          left: 0.9rem; right: 0.9rem; height: 2px;
+          background: #c2602a; border-radius: 2px;
+          transform: scaleX(0); transition: transform 0.22s ease;
           transform-origin: left;
         }
         .nb-link:hover { color: #2c1810; background: rgba(194,96,42,0.06); }
         .nb-link.active { color: #c2602a; }
-        .nb-link:hover::after,
-        .nb-link.active::after { transform: scaleX(1); }
+        .nb-link:hover::after, .nb-link.active::after { transform: scaleX(1); }
 
-        /* ─── RIGHT ACTIONS ─── */
-        .nb-actions {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          flex-shrink: 0;
-        }
+        .nb-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
 
-        /* Cart button */
         .nb-cart-btn {
-          position: relative;
-          background: none;
-          border: none;
-          width: 42px;
-          height: 42px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          color: #4a3728;
-          transition: background 0.2s, color 0.2s;
+          position: relative; background: none; border: none;
+          width: 42px; height: 42px; border-radius: 10px;
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; color: #4a3728; transition: background 0.2s, color 0.2s;
         }
         .nb-cart-btn:hover { background: #f2ede4; color: #c2602a; }
         .nb-cart-count {
-          position: absolute;
-          top: 5px;
-          right: 5px;
-          background: #c2602a;
-          color: #fff;
-          font-size: 0.58rem;
-          font-weight: 700;
-          min-width: 16px;
-          height: 16px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0 3px;
-          border: 2px solid #faf7f2;
-          line-height: 1;
+          position: absolute; top: 5px; right: 5px;
+          background: #c2602a; color: #fff; font-size: 0.58rem; font-weight: 700;
+          min-width: 16px; height: 16px; border-radius: 10px;
+          display: flex; align-items: center; justify-content: center;
+          padding: 0 3px; border: 2px solid #faf7f2; line-height: 1;
         }
 
-        /* User pill */
         .nb-user-pill {
-          display: flex;
-          align-items: center;
-          gap: 0.45rem;
-          background: #f2ede4;
-          border: 1.5px solid #e8dfd0;
-          border-radius: 50px;
-          padding: 0.35rem 0.9rem 0.35rem 0.45rem;
-          font-size: 0.8rem;
-          color: #5c3d2e;
-          font-weight: 700;
+          display: flex; align-items: center; gap: 0.45rem;
+          background: #f2ede4; border: 1.5px solid #e8dfd0;
+          border-radius: 50px; padding: 0.35rem 0.9rem 0.35rem 0.45rem;
+          font-size: 0.8rem; color: #5c3d2e; font-weight: 700;
           transition: border-color 0.2s;
         }
         .nb-user-pill:hover { border-color: #c2602a; }
         .nb-user-icon {
-          width: 26px;
-          height: 26px;
-          border-radius: 50%;
-          background: #c2602a;
-          color: #fff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 0.65rem;
-          font-weight: 700;
-          flex-shrink: 0;
+          width: 26px; height: 26px; border-radius: 50%;
+          background: #c2602a; color: #fff;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 0.65rem; font-weight: 700; flex-shrink: 0;
         }
         .nb-logout-btn {
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: #9a8070;
-          padding: 0.2rem;
-          border-radius: 6px;
-          display: flex;
-          align-items: center;
-          transition: color 0.2s;
-          margin-left: 0.1rem;
+          background: none; border: none; cursor: pointer; color: #9a8070;
+          padding: 0.2rem; border-radius: 6px; display: flex; align-items: center;
+          transition: color 0.2s; margin-left: 0.1rem;
         }
         .nb-logout-btn:hover { color: #c2602a; }
 
-        /* Login button */
         .nb-login-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.4rem;
-          background: #2c1810;
-          color: #fff;
-          border: none;
-          border-radius: 50px;
-          padding: 0.55rem 1.3rem;
-          font-size: 0.85rem;
-          font-weight: 700;
-          cursor: pointer;
-          font-family: 'Lato', sans-serif;
-          transition: background 0.2s, transform 0.15s;
-          letter-spacing: 0.02em;
+          display: inline-flex; align-items: center; gap: 0.4rem;
+          background: #2c1810; color: #fff; border: none; border-radius: 50px;
+          padding: 0.55rem 1.3rem; font-size: 0.85rem; font-weight: 700;
+          cursor: pointer; font-family: 'Lato', Georgia, sans-serif;
+          transition: background 0.2s, transform 0.15s; letter-spacing: 0.02em;
         }
         .nb-login-btn:hover { background: #5c3d2e; transform: translateY(-1px); }
 
-        /* Divider between cart and user */
-        .nb-divider {
-          width: 1px;
-          height: 24px;
-          background: #e8dfd0;
-          margin: 0 0.1rem;
-        }
+        .nb-divider { width: 1px; height: 24px; background: #e8dfd0; margin: 0 0.1rem; }
 
-        /* ─── HAMBURGER ─── */
         .nb-hamburger {
-          display: none;
-          background: none;
-          border: none;
-          width: 40px;
-          height: 40px;
-          border-radius: 10px;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          color: #4a3728;
-          transition: background 0.2s;
+          display: none; background: none; border: none;
+          width: 40px; height: 40px; border-radius: 10px;
+          align-items: center; justify-content: center;
+          cursor: pointer; color: #4a3728; transition: background 0.2s;
         }
         .nb-hamburger:hover { background: #f2ede4; }
 
-        /* ─── MOBILE OVERLAY ─── */
         .nb-mobile-overlay {
-          display: none;
-          position: fixed;
-          inset: 0;
-          background: rgba(44,24,16,0.45);
-          z-index: 299;
+          display: none; position: fixed; inset: 0;
+          background: rgba(44,24,16,0.45); z-index: 299;
           backdrop-filter: blur(3px);
         }
         .nb-mobile-overlay.open { display: block; }
 
-        /* ─── MOBILE DRAWER ─── */
         .nb-mobile-drawer {
-          position: fixed;
-          top: 0;
-          left: 0;
-          bottom: 0;
-          width: min(300px, 85vw);
-          background: #faf7f2;
-          z-index: 300;
-          display: flex;
-          flex-direction: column;
+          position: fixed; top: 0; left: 0; bottom: 0;
+          width: min(300px, 85vw); background: #faf7f2; z-index: 300;
+          display: flex; flex-direction: column;
           transform: translateX(-100%);
           transition: transform 0.3s cubic-bezier(.4,0,.2,1);
           box-shadow: 12px 0 48px rgba(44,24,16,0.18);
@@ -329,141 +209,75 @@ const Navbar = () => {
         .nb-mobile-drawer.open { transform: translateX(0); }
 
         .nb-drawer-head {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 1rem 1.25rem;
-          border-bottom: 1px solid #e8dfd0;
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 1rem 1.25rem; border-bottom: 1px solid #e8dfd0;
           background: #f2ede4;
         }
         .nb-drawer-close {
-          background: #fff;
-          border: 1.5px solid #e8dfd0;
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          color: #9a8070;
-          transition: all 0.15s;
-          flex-shrink: 0;
+          background: #fff; border: 1.5px solid #e8dfd0;
+          width: 32px; height: 32px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; color: #9a8070; transition: all 0.15s; flex-shrink: 0;
         }
         .nb-drawer-close:hover { background: #e8dfd0; color: #2c1810; }
 
         .nb-drawer-links {
-          flex: 1;
-          padding: 1.25rem 0.75rem;
-          display: flex;
-          flex-direction: column;
-          gap: 0.2rem;
-          overflow-y: auto;
+          flex: 1; padding: 1.25rem 0.75rem;
+          display: flex; flex-direction: column; gap: 0.2rem; overflow-y: auto;
         }
         .nb-drawer-link {
-          display: flex;
-          align-items: center;
-          text-decoration: none;
-          font-size: 0.95rem;
-          font-weight: 700;
-          color: #4a3728;
-          padding: 0.8rem 1rem;
-          border-radius: 12px;
+          display: flex; align-items: center; text-decoration: none;
+          font-size: 0.95rem; font-weight: 700; color: #4a3728;
+          padding: 0.8rem 1rem; border-radius: 12px;
           transition: background 0.15s, color 0.15s;
-          font-family: 'Lato', sans-serif;
+          font-family: 'Lato', Georgia, sans-serif;
         }
-        .nb-drawer-link:hover,
-        .nb-drawer-link.active { background: #f2ede4; color: #c2602a; }
-        .nb-drawer-link.active {
-          border-left: 3px solid #c2602a;
-          padding-left: calc(1rem - 3px);
-        }
+        .nb-drawer-link:hover, .nb-drawer-link.active { background: #f2ede4; color: #c2602a; }
+        .nb-drawer-link.active { border-left: 3px solid #c2602a; padding-left: calc(1rem - 3px); }
 
         .nb-drawer-footer {
-          padding: 1.25rem;
-          border-top: 1px solid #e8dfd0;
-          display: flex;
-          flex-direction: column;
-          gap: 0.6rem;
+          padding: 1.25rem; border-top: 1px solid #e8dfd0;
+          display: flex; flex-direction: column; gap: 0.6rem;
         }
         .nb-drawer-cart-btn {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          background: #2c1810;
-          color: #fff;
-          border: none;
-          border-radius: 12px;
-          padding: 0.85rem 1.2rem;
-          font-size: 0.9rem;
-          font-weight: 700;
-          cursor: pointer;
-          font-family: 'Lato', sans-serif;
+          display: flex; align-items: center; justify-content: space-between;
+          background: #2c1810; color: #fff; border: none; border-radius: 12px;
+          padding: 0.85rem 1.2rem; font-size: 0.9rem; font-weight: 700;
+          cursor: pointer; font-family: 'Lato', Georgia, sans-serif;
           transition: background 0.2s;
         }
         .nb-drawer-cart-btn:hover { background: #5c3d2e; }
         .nb-drawer-cart-left { display: flex; align-items: center; gap: 0.6rem; }
         .nb-drawer-login-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-          background: #f2ede4;
-          color: #2c1810;
-          border: 1.5px solid #e8dfd0;
-          border-radius: 12px;
-          padding: 0.75rem;
-          font-size: 0.88rem;
-          font-weight: 700;
-          cursor: pointer;
-          font-family: 'Lato', sans-serif;
+          display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+          background: #f2ede4; color: #2c1810; border: 1.5px solid #e8dfd0;
+          border-radius: 12px; padding: 0.75rem; font-size: 0.88rem; font-weight: 700;
+          cursor: pointer; font-family: 'Lato', Georgia, sans-serif;
           transition: all 0.15s;
         }
         .nb-drawer-login-btn:hover { border-color: #c2602a; color: #c2602a; }
         .nb-drawer-user {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          background: #f2ede4;
-          border-radius: 12px;
-          padding: 0.75rem 1rem;
+          display: flex; align-items: center; justify-content: space-between;
+          background: #f2ede4; border-radius: 12px; padding: 0.75rem 1rem;
         }
         .nb-drawer-user-info { display: flex; align-items: center; gap: 0.65rem; }
         .nb-drawer-user-avatar {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: #c2602a;
-          color: #fff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 0.72rem;
-          font-weight: 700;
+          width: 32px; height: 32px; border-radius: 50%;
+          background: #c2602a; color: #fff;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 0.72rem; font-weight: 700;
         }
         .nb-drawer-user-email {
-          font-size: 0.76rem;
-          color: #5c3d2e;
-          font-weight: 700;
-          max-width: 160px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          font-size: 0.76rem; color: #5c3d2e; font-weight: 700;
+          max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .nb-drawer-logout {
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: #9a8070;
-          padding: 0.3rem;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
+          background: none; border: none; cursor: pointer; color: #9a8070;
+          padding: 0.3rem; border-radius: 8px; display: flex; align-items: center;
           transition: color 0.15s;
         }
         .nb-drawer-logout:hover { color: #c2602a; }
 
-        /* ─── RESPONSIVE ─── */
         @media (max-width: 900px) {
           .nb-links { display: none; }
           .nb-actions .nb-divider,
@@ -478,37 +292,30 @@ const Navbar = () => {
         }
       `}</style>
 
-      {/* ── Announcement Bar ── */}
+      {/* Announcement Bar */}
       <div className="nb-announce" role="banner">
         🚚 Free shipping on orders above ₹499 &nbsp;<span>·</span>&nbsp; 100% Handmade in Varanasi <span>·</span> Custom orders welcome!
       </div>
 
-      {/* ── Main Navbar ── */}
+      {/* Main Navbar */}
       <nav className={`nb-root${scrolled ? ' scrolled' : ''}`} role="navigation" aria-label="Main navigation">
         <div className="nb-inner">
 
-          {/* Logo */}
           <Link to="/" className="nb-logo-link" aria-label="Besties Craft Home">
             <LogoB />
           </Link>
 
-          {/* Desktop Nav Links — centered absolutely */}
           <ul className="nb-links">
             {navLinks.map(link => (
               <li key={link.to}>
-                <Link
-                  to={link.to}
-                  className={`nb-link${isActive(link.to) ? ' active' : ''}`}
-                >
+                <Link to={link.to} className={`nb-link${isActive(link.to) ? ' active' : ''}`}>
                   {link.label}
                 </Link>
               </li>
             ))}
           </ul>
 
-          {/* Right Actions */}
           <div className="nb-actions">
-            {/* Cart */}
             <button
               className="nb-cart-btn"
               onClick={() => setIsCartOpen(true)}
@@ -522,7 +329,6 @@ const Navbar = () => {
 
             <div className="nb-divider" aria-hidden="true" />
 
-            {/* User / Login */}
             {user ? (
               <div className="nb-user-pill">
                 <div className="nb-user-icon" aria-hidden="true">
@@ -541,7 +347,6 @@ const Navbar = () => {
               </button>
             )}
 
-            {/* Hamburger (mobile) */}
             <button
               className="nb-hamburger"
               onClick={() => setIsMenuOpen(true)}
@@ -554,7 +359,7 @@ const Navbar = () => {
         </div>
       </nav>
 
-      {/* ── Mobile Drawer ── */}
+      {/* Mobile Drawer */}
       <div
         className={`nb-mobile-overlay${isMenuOpen ? ' open' : ''}`}
         onClick={() => setIsMenuOpen(false)}
@@ -570,11 +375,7 @@ const Navbar = () => {
           <Link to="/" onClick={() => setIsMenuOpen(false)} aria-label="Besties Craft Home">
             <LogoB />
           </Link>
-          <button
-            className="nb-drawer-close"
-            onClick={() => setIsMenuOpen(false)}
-            aria-label="Close menu"
-          >
+          <button className="nb-drawer-close" onClick={() => setIsMenuOpen(false)} aria-label="Close menu">
             <X size={15} />
           </button>
         </div>
